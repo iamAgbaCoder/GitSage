@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gitsage"
+version = "0.1.0"
+description = "Git Commit AI Assistant (Git Intelligence Layer)"
+readme      = "README.md"
+license     = { file = "LICENSE" }
+authors     = [
+    { name = "Favour Bamgboye", email = "demiladebamgboye@gmail.com" }
+]
+maintainers = [
+    { name = "Favour Bamgboye", email = "demiladebamgboye@gmail.com" }
+]
+
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "requests>=2.25.0",
+    "google-generativeai>=0.3.0"
+]
+requires-python = ">=3.10"
+
+keywords = [
+    "git", "ai", "devtools", "developer-tools", "git-tools",
+    "open-source", "cli-tool", "automation", "productivity", 
+    "commit-messages", "python", "generative-ai", "conventional-commits"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: System :: Installation/Setup",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Environment :: Console",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+    "ruff",
+    "black",
+    "mypy",
+    "types-requests",
+    "build",
+    "twine",
+]
+
+[project.scripts]
+gitsage = "cli.main:app"
+
+[project.urls]
+"Homepage"      = "https://gitsage.vercel.app"
+"Repository"    = "https://github.com/iamAgbaCoder/gitsage"
+"Documentation" = "https://gitsage.vercel.app/docs"
+"Bug Tracker"   = "https://github.com/iamAgbaCoder/gitsage/issues"
+"Changelog"     = "https://github.com/iamAgbaCoder/gitsage/releases"
+
+# ──────────────────────────────────────────────────────────────
+# Tool configs
+# ──────────────────────────────────────────────────────────────
+
+[tool.pydoctor]
+# Packages to ignore during unused dependency scanning
+ignored_packages = [
+    "gitsage",
+    "setuptools",
+    "wheel",
+    "twine",
+    "build",
+    "ruff",
+    "mypy",
+    "black",
+    "pytest",
+    "pytest-cov",
+    "colorama",
+    "docutils",
+    "types-requests",
+    "pipdeptree",
+]
+
+
+[tool.setuptools]
+packages = ["cli", "engine", "providers", "git", "config", "utils"]

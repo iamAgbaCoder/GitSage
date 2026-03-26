@@ -1,0 +1,20 @@
+import requests
+from .base import AIProvider
+
+class LocalProvider(AIProvider):
+    def __init__(self, model_name: str = "llama3"):
+        self.model_name = model_name
+        self.api_url = "http://localhost:11434/api/generate"
+
+    def generate(self, prompt: str) -> str:
+        try:
+            payload = {
+                "model": self.model_name,
+                "prompt": prompt,
+                "stream": False
+            }
+            response = requests.post(self.api_url, json=payload, timeout=30)
+            response.raise_for_status()
+            return response.json().get("response", "").strip()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Ollama local API error. Is Ollama running? Error: {str(e)}")
