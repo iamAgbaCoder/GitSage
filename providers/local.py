@@ -17,4 +17,4 @@ class LocalProvider(AIProvider):
             response.raise_for_status()
             return response.json().get("response", "").strip()
         except requests.RequestException as e:
-            raise RuntimeError(f"Ollama local API error. Is Ollama running? Error: {str(e)}")
+            raise RuntimeError(f"Local Engine API error. Is your local proxy/service running? Error: {str(e)}")

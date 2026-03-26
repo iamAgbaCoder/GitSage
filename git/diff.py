@@ -9,10 +9,14 @@ def get_staged_diff() -> Optional[str]:
         result = subprocess.run(
             ["git", "diff", "--cached", "-w"],
             capture_output=True,
-            text=True,
-            check=True
+            check=False
         )
-        diff_text = result.stdout.strip()
+        
+        if result.returncode != 0 or not result.stdout:
+            return None
+            
+        # Safely decode raw bytes back to utf-8, ignoring CP1252 local charmap errors
+        diff_text = result.stdout.decode("utf-8", errors="replace").strip()
         return diff_text if diff_text else None
     except subprocess.CalledProcessError:
         return None

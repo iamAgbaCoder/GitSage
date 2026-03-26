@@ -10,7 +10,11 @@ Provide a concise, insightful explanation of this commit. Must include EXACTLY t
 💡 Why it matters: (The impact of this change)
 🎯 Scope: (Files/modules affected)
 
-Make it extremely concise and developer-friendly. Do not include other text.
+Make it extremely concise and developer-friendly. Do not include markdown asterisks (**text**) for bolding.
+Instead, strictly use terminal rich markup colors to signify changes, particularly in the Scope section:
+- New files/code: [green]filename[/green]
+- Modified files/code: [yellow]filename[/yellow]
+- Deleted files/code: [red]filename[/red]
 
 Diff Context:
 {diff_summary_content}

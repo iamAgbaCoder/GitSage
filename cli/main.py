@@ -1,5 +1,10 @@
 import typer
 from rich.console import Console
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if present
+load_dotenv()
 
 from config.loader import load_config
 from engine.core import GitAIEngine
@@ -15,10 +20,22 @@ def get_provider(config: dict) -> AIProvider:
     provider_name = config.get("ai_provider", "gemini").lower()
     if provider_name == "gemini":
         try:
-            return GeminiProvider()
-        except ValueError as e:
-            console.print(f"[bold red]Configuration Error:[/bold red] {e}")
-            raise typer.Exit(1)
+            return GeminiProvider(api_key=config.get("api_key"))
+        except ValueError:
+            # Prompt the user for the API key quietly
+            console.print("[yellow]GitSage Intelligence Engine API Key is required but not found.[/yellow]")
+            api_key = typer.prompt("Please enter your Intelligence Engine API Key", hide_input=True)
+            if not api_key:
+                console.print("[bold red]Error:[/bold red] API Key is required to connect to the intelligence engine.")
+                raise typer.Exit(1)
+            
+            # Save it explicitly mapped back to user config
+            config["api_key"] = api_key
+            from config.loader import save_config
+            save_config(config)
+            
+            # Reattempt initializing
+            return GeminiProvider(api_key=api_key)
         except ImportError as e:
             console.print(f"[bold red]Dependency Error:[/bold red] {e}")
             raise typer.Exit(1)
@@ -49,7 +66,8 @@ def commit():
             raise typer.Exit(1)
 
     console.print(f"\n[bold green]Suggested commit:[/bold green] {result.message}\n")
-    console.print(f"[bold blue]Explanation:[/bold blue]\n{result.explanation}\n")
+    clean_explanation = result.explanation.replace("**", "")
+    console.print(f"[bold blue]Explanation:[/bold blue]\n{clean_explanation}\n")
     
     conf_color = "green" if result.confidence_score >= 0.7 else "yellow" if result.confidence_score >= 0.4 else "red"
     console.print(f"[bold]Confidence:[/bold] [{conf_color}]{result.confidence_score}[/{conf_color}]\n")
