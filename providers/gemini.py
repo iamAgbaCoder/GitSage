@@ -28,14 +28,3 @@ class GeminiProvider(AIProvider):
             return response.parts[0].text.strip() if response.parts else ""
         except Exception as e:
             raise RuntimeError(f"Intelligence Engine communication error: {str(e)}")
-
-    async def generate_async(self, prompt: str) -> str:
-        try:
-            response = await self.model.generate_content_async(prompt)
-            # handle case where text is potentially empty or blocked
-            if getattr(response, 'text', None):
-                return response.text.strip()
-            # fallback if 'parts' structure differs
-            return response.parts[0].text.strip() if response.parts else ""
-        except Exception as e:
-            raise RuntimeError(f"Intelligence Engine communication error: {str(e)}")

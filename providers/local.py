@@ -18,7 +18,3 @@ class LocalProvider(AIProvider):
             return response.json().get("response", "").strip()
         except requests.RequestException as e:
             raise RuntimeError(f"Local Engine API error. Is your local proxy/service running? Error: {str(e)}")
-
-    async def generate_async(self, prompt: str) -> str:
-        import asyncio
-        return await asyncio.to_thread(self.generate, prompt)

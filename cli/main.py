@@ -11,7 +11,7 @@ load_dotenv()
 
 from config.loader import load_config
 from engine.core import GitAIEngine
-from git.diff import get_staged_diff_async, execute_commit_async
+from git.diff import get_staged_diff, execute_commit
 from providers.gemini import GeminiProvider
 from providers.local import LocalProvider
 from providers.base import AIProvider
@@ -22,7 +22,7 @@ app = typer.Typer(
 )
 console = Console()
 
-LOGO = r"""[bold cyan]
+LOGO = """[bold cyan]
    ______ _ __  _____                  
   / ____/(_) /_/ ___/ ____ _ ____ _ ___ 
  / / __ / / __/\__ \ / __ `// __ `// _ \\
@@ -100,7 +100,7 @@ def display_result(result):
 
     # 2. Intelligence Section
     console.print("\n[bold magenta]🧠 Intelligence Engine Report[/bold magenta]")
-    console.print(f"[dim]{'━' * console.width}[/dim]")
+    console.print("[dim]━[/dim]" * console.width)
 
     explanation_text = result.explanation.replace("**", "").strip()
 
@@ -128,7 +128,7 @@ def display_result(result):
             else:
                 console.print(f"  {line}")
 
-    console.print(f"\n[dim]{'━' * console.width}[/dim]")
+    console.print(f"\n[dim]━[/dim]" * console.width)
 
     # 3. Confidence Score Bar (Redesigned for Premium Look)
     conf_value = int(result.confidence_score * 100)
@@ -158,31 +158,24 @@ def display_result(result):
 @app.command(
     name="commit", help="Analyze staged changes and generate a commit message."
 )
-def commit_sync():
-    import asyncio
+def commit():
+    # console.print(LOGO)
 
-    asyncio.run(commit())
-
-
-async def commit():
-    # Hide logo from normal output as requested
     config = load_config()
     provider = get_provider(config)
     engine = GitAIEngine(provider=provider, config=config)
-
-    from git.diff import get_staged_diff_async, execute_commit_async
 
     with console.status(
         "[bold cyan]🔍 Analyzing staged changes...[/bold cyan]",
         spinner="dots12",
         spinner_style="bold cyan",
     ):
-        diff = await get_staged_diff_async()
+        diff = get_staged_diff()
 
     if not diff:
         console.print(
             Panel(
-                "[bold yellow]⚠️ No staged changes found.[/bold yellow]\n[dim]Use 'git add <file>' to stage changes before running GitSage.[/dim]",
+                "[bold yellow]⚠️ No staged changes found. Did you forget to 'git add'?[/bold yellow]\n[dim]Use 'git add <file>' to stage changes before running GitSage.[/dim]",
                 border_style="yellow",
                 expand=False,
                 padding=(1, 2),
@@ -196,7 +189,7 @@ async def commit():
         spinner_style="bold magenta",
     ):
         try:
-            result = await engine.generate_commit_async(diff)
+            result = engine.generate_commit(diff)
         except Exception as e:
             show_error(str(e), title="Engine Error")
 
@@ -215,7 +208,7 @@ async def commit():
 
     if action == "y":
         with console.status("[dim]Creating commit...[/dim]", spinner="simpleDots"):
-            success = await execute_commit_async(result.message)
+            success = execute_commit(result.message)
 
         if success:
             console.print(
@@ -234,7 +227,7 @@ async def commit():
             return
 
         with console.status("[dim]Creating commit...[/dim]", spinner="simpleDots"):
-            success = await execute_commit_async(edited_message)
+            success = execute_commit(edited_message)
 
         if success:
             console.print(
@@ -258,11 +251,8 @@ def main(
 ):
     if ctx.invoked_subcommand is None:
         if c:
-            import asyncio
-
-            asyncio.run(commit())
+            commit()
         else:
-            console.print(LOGO)  # Print logo on root or help
             console.print(ctx.get_help())
 
 
