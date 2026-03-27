@@ -31,5 +31,6 @@ class GitAIEngine:
         return CommitResult(
             message=message,
             explanation=explanation,
-            confidence_score=confidence
+            confidence_score=confidence,
+            files_changed=summary.files_changed
         )

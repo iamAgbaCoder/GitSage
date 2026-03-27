@@ -1,5 +1,8 @@
 import typer
 from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich.prompt import Prompt
 import os
 from dotenv import load_dotenv
 
@@ -13,8 +16,35 @@ from providers.gemini import GeminiProvider
 from providers.local import LocalProvider
 from providers.base import AIProvider
 
-app = typer.Typer(help="GitSage - Git Commit AI Assistant (Git Intelligence Layer)")
+app = typer.Typer(
+    help="GitSage - Git Commit AI Assistant (Git Intelligence Layer)",
+    add_completion=False,
+)
 console = Console()
+
+LOGO = """[bold cyan]
+   ______ _ __  _____                  
+  / ____/(_) /_/ ___/ ____ _ ____ _ ___ 
+ / / __ / / __/\__ \ / __ `// __ `// _ \\
+/ /_/ // / /_ ___/ // /_/ // /_/ //  __/
+\____//_/\__//____/ \__,_/ \__, / \___/ 
+                          /____/        [/bold cyan]
+ [dim]AI-Powered Commit Intelligence • v1.0.0[/dim]
+"""
+
+
+def show_error(message: str, title: str = "Error"):
+    console.print(
+        Panel(
+            f"[bold red]❌ {message}[/bold red]",
+            title=f"[bold red]{title}[/bold red]",
+            border_style="red",
+            expand=False,
+            padding=(1, 2),
+        )
+    )
+    raise typer.Exit(1)
+
 
 def get_provider(config: dict) -> AIProvider:
     provider_name = config.get("ai_provider", "gemini").lower()
@@ -22,82 +52,209 @@ def get_provider(config: dict) -> AIProvider:
         try:
             return GeminiProvider(api_key=config.get("api_key"))
         except ValueError:
-            # Prompt the user for the API key quietly
-            console.print("[yellow]GitSage Intelligence Engine API Key is required but not found.[/yellow]")
-            api_key = typer.prompt("Please enter your Intelligence Engine API Key", hide_input=True)
+            console.print(
+                Panel(
+                    "GitSage Intelligence Engine API Key is required but not found.",
+                    border_style="yellow",
+                    expand=False,
+                )
+            )
+            api_key = typer.prompt(
+                "Please enter your Intelligence Engine API Key", hide_input=True
+            )
             if not api_key:
-                console.print("[bold red]Error:[/bold red] API Key is required to connect to the intelligence engine.")
-                raise typer.Exit(1)
-            
+                show_error("API Key is required to connect to the intelligence engine.")
+
             # Save it explicitly mapped back to user config
             config["api_key"] = api_key
             from config.loader import save_config
+
             save_config(config)
-            
-            # Reattempt initializing
+
             return GeminiProvider(api_key=api_key)
         except ImportError as e:
-            console.print(f"[bold red]Dependency Error:[/bold red] {e}")
-            raise typer.Exit(1)
+            show_error(f"{e}", title="Dependency Error")
     elif provider_name == "local":
         return LocalProvider()
     else:
-        console.print(f"[bold red]Error:[/bold red] Unknown provider '{provider_name}'.")
-        raise typer.Exit(1)
+        show_error(f"Unknown provider '{provider_name}'.")
 
-@app.command(name="commit", help="Analyze staged changes and generate a commit message.")
+
+def display_result(result):
+    console.print()
+
+    # Files summary for meta info
+    files_count = len(result.files_changed)
+    files_plural = "file" if files_count == 1 else "files"
+
+    # 1. Suggested Commit Panel
+
+    commit_panel = Panel(
+        Text(result.message, style="bold cyan"),
+        title="[bold blue]🚀 GitSage Suggestion[/bold blue]",
+        subtitle=f"[dim blue]{files_count} {files_plural} affected[/dim blue]",
+        border_style="blue",
+        padding=(1, 2),
+    )
+    console.print(commit_panel)
+
+    # 2. Intelligence Section
+    console.print("\n[bold magenta]🧠 Intelligence Engine Report[/bold magenta]")
+    console.print("[dim]━[/dim]" * console.width)
+
+    explanation_text = result.explanation.replace("**", "").strip()
+
+    for line in explanation_text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+
+        if "🧠 What changed:" in line:
+            console.print(f"\n[bold cyan]• WHAT CHANGED[/bold cyan]")
+        elif "💡 Why it matters:" in line:
+            console.print(f"\n[bold yellow]• WHY IT MATTERS[/bold yellow]")
+        elif "🎯 Scope:" in line:
+            console.print(f"\n[bold magenta]• REACH & SCOPE[/bold magenta]")
+        elif line.startswith("*") or line.startswith("-"):
+            # Clean up the bullet and content
+            content = line.lstrip("*- ").strip()
+            console.print(f"  [dim]↳[/dim] {content}")
+        else:
+            # Handle AI-generated headers if it missed emojis
+            if line.endswith(":") and any(
+                h in line.lower() for h in ["changed", "matters", "scope"]
+            ):
+                console.print(f"\n[bold]{line.upper()}[/bold]")
+            else:
+                console.print(f"  {line}")
+
+    console.print(f"\n[dim]━[/dim]" * console.width)
+
+    # 3. Confidence Score Bar (Redesigned for Premium Look)
+    conf_value = int(result.confidence_score * 100)
+    conf_color = (
+        "green" if conf_value >= 80 else "yellow" if conf_value >= 50 else "red"
+    )
+
+    bar_length = 30
+    filled = int(bar_length * result.confidence_score)
+    empty = bar_length - filled
+
+    # Use a more high-end bar design
+    bar = (
+        f"[{conf_color}]{'█' * filled}[/{conf_color}][dim grey]{'░' * empty}[/dim grey]"
+    )
+
+    indicator = "●"
+    status_text = (
+        "TRUSTED" if conf_value >= 80 else "MODERATE" if conf_value >= 50 else "LOW"
+    )
+
+    console.print(
+        f"\n [bold white]Intelligence Confidence:[/bold white] {bar} [{conf_color}]{indicator} {conf_value}% ({status_text})[/{conf_color}]\n"
+    )
+
+
+@app.command(
+    name="commit", help="Analyze staged changes and generate a commit message."
+)
 def commit():
+    # console.print(LOGO)
+
     config = load_config()
     provider = get_provider(config)
     engine = GitAIEngine(provider=provider, config=config)
 
-    with console.status("[bold cyan]Analyzing staged changes...[/bold cyan]", spinner="dots"):
+    with console.status(
+        "[bold cyan]🔍 Analyzing staged changes...[/bold cyan]",
+        spinner="dots12",
+        spinner_style="bold cyan",
+    ):
         diff = get_staged_diff()
-        
+
     if not diff:
-        console.print("[yellow]No staged changes found. Did you forget to 'git add'?[/yellow]")
+        console.print(
+            Panel(
+                "[bold yellow]⚠️ No staged changes found. Did you forget to 'git add'?[/bold yellow]\n[dim]Use 'git add <file>' to stage changes before running GitSage.[/dim]",
+                border_style="yellow",
+                expand=False,
+                padding=(1, 2),
+            )
+        )
         raise typer.Exit(0)
 
-    with console.status("[bold cyan]Generating commit and explanation...[/bold cyan]", spinner="dots"):
+    with console.status(
+        "[bold magenta]🧠 Generating intelligence...[/bold magenta]",
+        spinner="dots12",
+        spinner_style="bold magenta",
+    ):
         try:
             result = engine.generate_commit(diff)
         except Exception as e:
-            console.print(f"[bold red]Engine Error:[/bold red] {e}")
-            raise typer.Exit(1)
+            show_error(str(e), title="Engine Error")
 
-    console.print(f"\n[bold green]Suggested commit:[/bold green] {result.message}\n")
-    clean_explanation = result.explanation.replace("**", "")
-    console.print(f"[bold blue]Explanation:[/bold blue]\n{clean_explanation}\n")
-    
-    conf_color = "green" if result.confidence_score >= 0.7 else "yellow" if result.confidence_score >= 0.4 else "red"
-    console.print(f"[bold]Confidence:[/bold] [{conf_color}]{result.confidence_score}[/{conf_color}]\n")
+    display_result(result)
 
-    action = typer.prompt("Proceed? (y/n/edit)", default="y").strip().lower()
+    # Interactive Prompt
+    action = (
+        Prompt.ask(
+            "\n[bold yellow]Ready to commit?[/bold yellow]",
+            choices=["y", "n", "edit"],
+            default="y",
+        )
+        .strip()
+        .lower()
+    )
 
     if action == "y":
-        if execute_commit(result.message):
-            console.print("[bold green]✔ Successfully committed changes![/bold green]")
+        with console.status("[dim]Creating commit...[/dim]", spinner="simpleDots"):
+            success = execute_commit(result.message)
+
+        if success:
+            console.print(
+                "\n[bold green]✔ Commit created successfully![/bold green] 🚀"
+            )
+            console.print("[dim]Use 'git push' to share your changes.[/dim]\n")
         else:
-            console.print("[bold red]✖ Failed to execute commit.[/bold red]")
+            show_error("Git failed to execute the commit command.", title="Git Error")
+
     elif action == "edit":
-        edited_message = typer.prompt("Edit message", default=result.message)
-        if execute_commit(edited_message):
-            console.print("[bold green]✔ Successfully committed changes![/bold green]")
+        console.print("\n[bold cyan]✎ Entering Edit Mode[/bold cyan]")
+        edited_message = typer.prompt("Revised message", default=result.message)
+
+        if not edited_message:
+            console.print("[yellow]Empty message. Commit aborted.[/yellow]")
+            return
+
+        with console.status("[dim]Creating commit...[/dim]", spinner="simpleDots"):
+            success = execute_commit(edited_message)
+
+        if success:
+            console.print(
+                "\n[bold green]✔ Commit created successfully![/bold green] 🚀"
+            )
         else:
-            console.print("[bold red]✖ Failed to execute commit.[/bold red]")
+            show_error("Git failed to execute the commit command.", title="Git Error")
     else:
-        console.print("[yellow]Commit aborted.[/yellow]")
+        console.print("\n[dim]✖ Commit aborted by user.[/dim]\n")
+
 
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
-    c: bool = typer.Option(False, "--commit", "-c", help="Analyze staged changes and generate a commit message.")
+    c: bool = typer.Option(
+        False,
+        "--commit",
+        "-c",
+        help="Analyze staged changes and generate a commit message.",
+    ),
 ):
     if ctx.invoked_subcommand is None:
         if c:
             commit()
         else:
             console.print(ctx.get_help())
+
 
 if __name__ == "__main__":
     app()

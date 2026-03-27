@@ -12,3 +12,4 @@ class CommitResult:
     message: str
     explanation: str
     confidence_score: float
+    files_changed: List[str]
