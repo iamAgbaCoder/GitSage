@@ -30,3 +30,11 @@ def execute_commit(message: str) -> bool:
         return True
     except subprocess.CalledProcessError:
         return False
+
+async def get_staged_diff_async() -> Optional[str]:
+    import asyncio
+    return await asyncio.to_thread(get_staged_diff)
+
+async def execute_commit_async(message: str) -> bool:
+    import asyncio
+    return await asyncio.to_thread(execute_commit, message)
