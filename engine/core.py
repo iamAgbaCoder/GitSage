@@ -10,27 +10,50 @@ class GitAIEngine:
         self.provider = provider
         self.config = config
 
-    def generate_commit(self, raw_diff: str) -> CommitResult:
+    async def generate_commit_async(self, raw_diff: str) -> CommitResult:
         if not raw_diff:
-            raise ValueError("No diff provided.")
+            raise ValueError("No staged changes provided.")
             
         truncated_diff = truncate_diff(raw_diff)
-        summary = parse_diff(truncated_diff)
         
+        from .cache import GitSageCache
+        cache = GitSageCache()
+        
+        # Check cache first
+        cached_result = cache.get(truncated_diff)
+        if cached_result:
+            return cached_result
+            
+        summary = parse_diff(truncated_diff)
         style = self.config.get("style", "conventional")
         
-        # Step 1: Generate commit message
-        message = generate_commit_message(summary.raw_content, self.provider, style=style)
+        from .orchestrator import generate_full_result_async
+        from .explainer import calculate_confidence
         
-        # Step 2: Generate explanation
-        explanation = generate_explanation(message, summary.raw_content, self.provider)
+        # Step 1: Single-Round AI Generation (Optimized)
+        message, explanation = await generate_full_result_async(
+            summary.raw_content, 
+            self.provider, 
+            style=style
+        )
         
-        # Step 3: Confidence Score
+        # Step 2: Parallelize confidence calculation
         confidence = calculate_confidence(message, truncated_diff)
         
-        return CommitResult(
+        result = CommitResult(
             message=message,
             explanation=explanation,
             confidence_score=confidence,
             files_changed=summary.files_changed
         )
+        
+        # Save to cache
+        cache.save(truncated_diff, result)
+        
+        return result
+
+    def generate_commit(self, raw_diff: str) -> CommitResult:
+        import asyncio
+        import warnings
+        warnings.warn("Use generate_commit_async instead for better performance.", DeprecationWarning)
+        return asyncio.run(self.generate_commit_async(raw_diff))

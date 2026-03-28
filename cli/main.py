@@ -16,20 +16,28 @@ from providers.gemini import GeminiProvider
 from providers.local import LocalProvider
 from providers.base import AIProvider
 
+from utils import __version__
+
+def version_callback(value: bool):
+    if value:
+        from rich.console import Console
+        Console().print(f"[bold cyan]GitSage[/bold cyan] [dim]{__version__}[/dim]")
+        raise typer.Exit()
+
 app = typer.Typer(
-    help="GitSage - Git Commit AI Assistant (Git Intelligence Layer)",
+    help=f"GitSage - Git Commit AI Assistant (Git Intelligence Layer) • {__version__}",
     add_completion=False,
 )
 console = Console()
 
-LOGO = """[bold cyan]
+LOGO = rf"""[bold cyan]
    ______ _ __  _____                  
   / ____/(_) /_/ ___/ ____ _ ____ _ ___ 
  / / __ / / __/\__ \ / __ `// __ `// _ \\
 / /_/ // / /_ ___/ // /_/ // /_/ //  __/
 \____//_/\__//____/ \__,_/ \__, / \___/ 
                           /____/        [/bold cyan]
- [dim]AI-Powered Commit Intelligence • v1.0.0[/dim]
+ [dim]AI-Powered Commit Intelligence • {__version__}[/dim]
 """
 
 
@@ -100,7 +108,7 @@ def display_result(result):
 
     # 2. Intelligence Section
     console.print("\n[bold magenta]🧠 Intelligence Engine Report[/bold magenta]")
-    console.print("[dim]━[/dim]" * console.width)
+    console.print(f"[dim]{'━' * console.width}[/dim]")
 
     explanation_text = result.explanation.replace("**", "").strip()
 
@@ -128,7 +136,7 @@ def display_result(result):
             else:
                 console.print(f"  {line}")
 
-    console.print(f"\n[dim]━[/dim]" * console.width)
+    console.print(f"\n[dim]{'━' * console.width}[/dim]")
 
     # 3. Confidence Score Bar (Redesigned for Premium Look)
     conf_value = int(result.confidence_score * 100)
@@ -158,24 +166,31 @@ def display_result(result):
 @app.command(
     name="commit", help="Analyze staged changes and generate a commit message."
 )
-def commit():
-    # console.print(LOGO)
+def commit_sync():
+    import asyncio
 
+    asyncio.run(commit())
+
+
+async def commit():
+    # Hide logo from normal output as requested
     config = load_config()
     provider = get_provider(config)
     engine = GitAIEngine(provider=provider, config=config)
+
+    from git.diff import get_staged_diff_async, execute_commit_async
 
     with console.status(
         "[bold cyan]🔍 Analyzing staged changes...[/bold cyan]",
         spinner="dots12",
         spinner_style="bold cyan",
     ):
-        diff = get_staged_diff()
+        diff = await get_staged_diff_async()
 
     if not diff:
         console.print(
             Panel(
-                "[bold yellow]⚠️ No staged changes found. Did you forget to 'git add'?[/bold yellow]\n[dim]Use 'git add <file>' to stage changes before running GitSage.[/dim]",
+                "[bold yellow]⚠️ No staged changes found.[/bold yellow]\n[dim]Use 'git add <file>' to stage changes before running GitSage.[/dim]",
                 border_style="yellow",
                 expand=False,
                 padding=(1, 2),
@@ -189,7 +204,7 @@ def commit():
         spinner_style="bold magenta",
     ):
         try:
-            result = engine.generate_commit(diff)
+            result = await engine.generate_commit_async(diff)
         except Exception as e:
             show_error(str(e), title="Engine Error")
 
@@ -208,7 +223,7 @@ def commit():
 
     if action == "y":
         with console.status("[dim]Creating commit...[/dim]", spinner="simpleDots"):
-            success = execute_commit(result.message)
+            success = await execute_commit_async(result.message)
 
         if success:
             console.print(
@@ -227,7 +242,7 @@ def commit():
             return
 
         with console.status("[dim]Creating commit...[/dim]", spinner="simpleDots"):
-            success = execute_commit(edited_message)
+            success = await execute_commit_async(edited_message)
 
         if success:
             console.print(
@@ -248,11 +263,22 @@ def main(
         "-c",
         help="Analyze staged changes and generate a commit message.",
     ),
+    version: bool = typer.Option(
+        None,
+        "--version",
+        "-v",
+        callback=version_callback,
+        is_eager=True,
+        help="Show the version and exit.",
+    ),
 ):
     if ctx.invoked_subcommand is None:
         if c:
-            commit()
+            import asyncio
+
+            asyncio.run(commit())
         else:
+            console.print(LOGO)  # Print logo on root or help
             console.print(ctx.get_help())
 
 
