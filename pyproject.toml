@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gitsage"
 version = "1.0.0"
-description = "Git Commit AI Assistant (Git Intelligence Layer)"
+description = "GitSage AI: Premium AI-powered Git commit assistant with deep intelligence."
 readme      = "README.md"
 license     = { file = "LICENSE" }
 authors     = [
@@ -16,11 +16,11 @@ maintainers = [
 ]
 
 dependencies = [
-    "typer>=0.9.0",
-    "rich>=13.0.0",
-    "requests>=2.25.0",
-    "google-generativeai>=0.3.0",
-    "python-dotenv>=1.0.0"
+    "typer[all]>=0.12.0",
+    "rich>=13.7.0",
+    "requests>=2.31.0",
+    "google-generativeai>=0.8.0",
+    "python-dotenv>=1.0.1"
 ]
 requires-python = ">=3.10"
 
@@ -50,6 +50,7 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
+    "pytest-asyncio",
     "pytest-cov",
     "ruff",
     "black",

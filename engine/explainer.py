@@ -1,6 +1,17 @@
 from providers.base import AIProvider
 
 def generate_explanation(commit_message: str, diff_summary_content: str, provider: AIProvider) -> str:
+    """
+    Generate a detailed intelligence report explaining the commit impact.
+    
+    Args:
+        commit_message (str): The previously generated commit message.
+        diff_summary_content (str): The pre-processed diff text.
+        provider (AIProvider): The configured AI provider.
+        
+    Returns:
+        str: A multi-line string containing 'What changed', 'Why it matters', and 'Scope'.
+    """
     prompt = f"""You are an expert tech lead reviewing a git commit.
     
 Commit Message: {commit_message}
@@ -22,6 +33,16 @@ Diff Context:
     return provider.generate(prompt)
 
 def calculate_confidence(commit_message: str, diff: str) -> float:
+    """
+    Calculate an intelligence confidence score based on structural heuristics.
+    
+    Args:
+        commit_message (str): The generated commit message.
+        diff (str): The raw diff text analyzed.
+        
+    Returns:
+        float: A confidence score between 0.5 (base) and 0.99.
+    """
     # Basic heuristic scoring
     score = 0.5
     # Conventional commit heuristic

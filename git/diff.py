@@ -2,7 +2,16 @@ import subprocess
 from typing import Optional
 
 def get_staged_diff() -> Optional[str]:
-    """Retrieve the staged git diff, ignoring whitespace only changes."""
+    """
+    Retrieve the staged git diff, ignoring whitespace-only changes and sensitive files.
+    """
+    import re
+    # Patterns for sensitive files that should NEVER be sent to the AI
+    SENSITIVE_PATTERNS = [
+        r"\.env$", r"\.key$", r"\.pem$", r"id_rsa", r"secrets", r"config\.json$",
+        r"credentials", r"token", r"api_key"
+    ]
+    
     try:
         subprocess.run(["git", "--version"], capture_output=True, check=True)
         # Get staged diff, ignoring whitespace
@@ -16,11 +25,27 @@ def get_staged_diff() -> Optional[str]:
             return None
             
         # Safely decode raw bytes back to utf-8, ignoring CP1252 local charmap errors
-        diff_text = result.stdout.decode("utf-8", errors="replace").strip()
+        raw_diff = result.stdout.decode("utf-8", errors="replace").strip()
+        
+        if not raw_diff:
+            return None
+            
+        # Filter out sensitive files from the diff
+        filtered_lines = []
+        skip_current_file = False
+        
+        for line in raw_diff.splitlines():
+            # If we encounter a new file header
+            if line.startswith("diff --git"):
+                # Check if the filename matches any sensitive pattern
+                skip_current_file = any(re.search(p, line, re.IGNORECASE) for p in SENSITIVE_PATTERNS)
+            
+            if not skip_current_file:
+                filtered_lines.append(line)
+        
+        diff_text = "\n".join(filtered_lines).strip()
         return diff_text if diff_text else None
-    except subprocess.CalledProcessError:
-        return None
-    except FileNotFoundError:
+    except Exception:
         return None
 
 def execute_commit(message: str) -> bool:

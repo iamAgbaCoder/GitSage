@@ -1,7 +1,19 @@
 from .models import DiffSummary
 
 def parse_diff(raw_diff: str) -> DiffSummary:
-    """Preprocess the diff to identify files changed and basic intent."""
+    """
+    Parse a raw git diff and extract meaningful structural components.
+    
+    Transforms the raw diff text into a structured DiffSummary containing 
+    the list of affected files, a human-readable intent summary, and 
+    cleaned-up content for AI consumption.
+    
+    Args:
+        raw_diff (str): The raw output from a git diff command.
+        
+    Returns:
+        DiffSummary: A structured object containing the meta info and filtered diff content.
+    """
     files_changed = []
     cleaned_lines = []
     

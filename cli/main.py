@@ -1,3 +1,10 @@
+"""
+GitSage CLI - AI-Powered Git Commit Assistant.
+
+This module provides the primary command-line interface for GitSage,
+handling UI rendering, AI provider initialization, and user interactions.
+"""
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -19,6 +26,12 @@ from providers.base import AIProvider
 from utils import __version__
 
 def version_callback(value: bool):
+    """
+    Handle the --version request.
+    
+    Args:
+        value (bool): Whether the version flag was passed.
+    """
     if value:
         from rich.console import Console
         Console().print(f"[bold cyan]GitSage[/bold cyan] [dim]{__version__}[/dim]")
@@ -42,6 +55,13 @@ LOGO = rf"""[bold cyan]
 
 
 def show_error(message: str, title: str = "Error"):
+    """
+    Display a stylized error message and exit.
+    
+    Args:
+        message (str): The error details.
+        title (str): The card title.
+    """
     console.print(
         Panel(
             f"[bold red]❌ {message}[/bold red]",
@@ -55,6 +75,15 @@ def show_error(message: str, title: str = "Error"):
 
 
 def get_provider(config: dict) -> AIProvider:
+    """
+    Initialize the AI provider based on user configuration.
+    
+    Args:
+        config (dict): The loaded configuration dictionary.
+        
+    Returns:
+        AIProvider: The initialized intelligence provider.
+    """
     provider_name = config.get("ai_provider", "gemini").lower()
     if provider_name == "gemini":
         try:
@@ -89,6 +118,12 @@ def get_provider(config: dict) -> AIProvider:
 
 
 def display_result(result):
+    """
+    Render a premium, high-fidelity report of the AI intelligence results.
+    
+    Args:
+        result (CommitResult): The structured result from the engine.
+    """
     console.print()
 
     # Files summary for meta info
@@ -163,17 +198,20 @@ def display_result(result):
     )
 
 
-@app.command(
-    name="commit", help="Analyze staged changes and generate a commit message."
-)
+@app.command(name="commit", help="Analyze staged changes and generate a commit message.")
 def commit_sync():
+    """Execute the commit analysis in a synchronous context."""
     import asyncio
 
     asyncio.run(commit())
 
 
 async def commit():
-    # Hide logo from normal output as requested
+    """
+    The main asynchronous commit workflow.
+    Processes staged changes, generates AI intelligence, and handles user confirmation.
+    """
+    # Load configuration and initialize engine
     config = load_config()
     provider = get_provider(config)
     engine = GitAIEngine(provider=provider, config=config)
@@ -210,7 +248,7 @@ async def commit():
 
     display_result(result)
 
-    # Interactive Prompt
+    # Interactive Prompt for user confirmation
     action = (
         Prompt.ask(
             "\n[bold yellow]Ready to commit?[/bold yellow]",
@@ -272,6 +310,9 @@ def main(
         help="Show the version and exit.",
     ),
 ):
+    """
+    Main callback handler for root execution and global options.
+    """
     if ctx.invoked_subcommand is None:
         if c:
             import asyncio
