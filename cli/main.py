@@ -10,7 +10,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt
-import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if present
@@ -18,24 +17,26 @@ load_dotenv()
 
 from config.loader import load_config
 from engine.core import GitAIEngine
-from git.diff import get_staged_diff, execute_commit
 from providers.gemini import GeminiProvider
 from providers.local import LocalProvider
 from providers.base import AIProvider
 
 from utils import __version__
 
+
 def version_callback(value: bool):
     """
     Handle the --version request.
-    
+
     Args:
         value (bool): Whether the version flag was passed.
     """
     if value:
         from rich.console import Console
+
         Console().print(f"[bold cyan]GitSage[/bold cyan] [dim]{__version__}[/dim]")
         raise typer.Exit()
+
 
 app = typer.Typer(
     help=f"GitSage - Git Commit AI Assistant (Git Intelligence Layer) • {__version__}",
@@ -57,7 +58,7 @@ LOGO = rf"""[bold cyan]
 def show_error(message: str, title: str = "Error"):
     """
     Display a stylized error message and exit.
-    
+
     Args:
         message (str): The error details.
         title (str): The card title.
@@ -77,10 +78,10 @@ def show_error(message: str, title: str = "Error"):
 def get_provider(config: dict) -> AIProvider:
     """
     Initialize the AI provider based on user configuration.
-    
+
     Args:
         config (dict): The loaded configuration dictionary.
-        
+
     Returns:
         AIProvider: The initialized intelligence provider.
     """
@@ -120,7 +121,7 @@ def get_provider(config: dict) -> AIProvider:
 def display_result(result):
     """
     Render a premium, high-fidelity report of the AI intelligence results.
-    
+
     Args:
         result (CommitResult): The structured result from the engine.
     """
@@ -153,11 +154,11 @@ def display_result(result):
             continue
 
         if "🧠 What changed:" in line:
-            console.print(f"\n[bold cyan]• WHAT CHANGED[/bold cyan]")
+            console.print("\n[bold cyan]• WHAT CHANGED[/bold cyan]")
         elif "💡 Why it matters:" in line:
-            console.print(f"\n[bold yellow]• WHY IT MATTERS[/bold yellow]")
+            console.print("\n[bold yellow]• WHY IT MATTERS[/bold yellow]")
         elif "🎯 Scope:" in line:
-            console.print(f"\n[bold magenta]• REACH & SCOPE[/bold magenta]")
+            console.print("\n[bold magenta]• REACH & SCOPE[/bold magenta]")
         elif line.startswith("*") or line.startswith("-"):
             # Clean up the bullet and content
             content = line.lstrip("*- ").strip()
@@ -198,7 +199,9 @@ def display_result(result):
     )
 
 
-@app.command(name="commit", help="Analyze staged changes and generate a commit message.")
+@app.command(
+    name="commit", help="Analyze staged changes and generate a commit message."
+)
 def commit_sync():
     """Execute the commit analysis in a synchronous context."""
     import asyncio

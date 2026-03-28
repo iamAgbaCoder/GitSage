@@ -8,8 +8,9 @@ DEFAULT_CONFIG = {
     "ai_provider": "gemini",
     "auto_commit": False,
     "max_length": 72,
-    "style": "conventional"
+    "style": "conventional",
 }
+
 
 def load_config() -> Dict[str, Any]:
     if not CONFIG_PATH.exists():
@@ -22,6 +23,7 @@ def load_config() -> Dict[str, Any]:
             return config
     except Exception:
         return DEFAULT_CONFIG.copy()
+
 
 def save_config(config: Dict[str, Any]):
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:

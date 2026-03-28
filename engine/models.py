@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from typing import List
 
+
 @dataclass
 class DiffSummary:
     files_changed: List[str]
     intent_summary: str
     raw_content: str
+
 
 @dataclass
 class CommitResult:

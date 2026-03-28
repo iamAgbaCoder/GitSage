@@ -1,14 +1,17 @@
 from providers.base import AIProvider
 
-def generate_commit_message(diff_summary_content: str, provider: AIProvider, style: str = "conventional") -> str:
+
+def generate_commit_message(
+    diff_summary_content: str, provider: AIProvider, style: str = "conventional"
+) -> str:
     """
     Generate a high-quality git commit message based on the provided diff.
-    
+
     Args:
         diff_summary_content (str): The pre-processed and cleaned diff text.
         provider (AIProvider): The configured AI provider (e.g. Gemini).
         style (str): The commit style to follow (e.g. "conventional").
-        
+
     Returns:
         str: The generated commit message string.
     """
