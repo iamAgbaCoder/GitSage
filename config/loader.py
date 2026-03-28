@@ -25,13 +25,14 @@ def load_config() -> Dict[str, Any]:
             return config
     except Exception:
         config = DEFAULT_CONFIG.copy()
-    
+
     # Ensure anonymous_id is generated once
     if not config.get("anonymous_id"):
         import uuid
+
         config["anonymous_id"] = str(uuid.uuid4())
         save_config(config)
-        
+
     return config
 
 

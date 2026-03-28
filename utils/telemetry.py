@@ -1,45 +1,43 @@
 import threading
 import requests
 import platform
-import uuid
 from typing import Optional
 
-# Anonymous Telemetry Configuration
-# Users can disable this in config or via 'gitsage config --telemetry false'
-TELEMETRY_ENDPOINT = "https://api.gitsage.dev/telemetry"
+# Google Analytics 4 Configuration
+# Get your API secret from: GA4 Admin > Data Streams > [Stream] > Measurement Protocol API secrets
+GA4_MEASUREMENT_ID = "G-XXXXXXXXXX"
+GA4_API_SECRET = "YOUR_API_SECRET"
+TELEMETRY_ENDPOINT = f"https://www.google-analytics.com/mp/collect?measurement_id={GA4_MEASUREMENT_ID}&api_secret={GA4_API_SECRET}"
 
 def _send_event(event_name: str, properties: dict):
-    """Internal helper to send the event silently."""
+    """Internal helper to send a GA4 event silently."""
     try:
         payload = {
-            "event": event_name,
-            "properties": {
-                **properties,
-                "os": platform.system(),
-                "python_version": platform.python_version(),
-            }
+            "client_id": properties.get("anonymous_id", "unknown"),
+            "events": [
+                {
+                    "name": event_name,
+                    "params": {
+                        **properties,
+                        "os": platform.system(),
+                        "python_version": platform.python_version(),
+                        "engagement_time_msec": "1",
+                    }
+                }
+            ]
         }
-        # Silent, non-blocking timeout
         requests.post(TELEMETRY_ENDPOINT, json=payload, timeout=2)
     except Exception:
-        # Telemetry should NEVER block or crash the user experience
         pass
 
 def track_event(event_name: str, config: dict, properties: Optional[dict] = None):
-    """
-    Public entry point for anonymous telemetry.
-    Runs in a background thread to ensure zero performance impact.
-    """
+    """Public entry point for anonymous telemetry."""
     if not config.get("telemetry", True):
         return
 
-    # Ensure we have an anonymous ID
     properties = properties or {}
     properties["anonymous_id"] = config.get("anonymous_id", "unknown")
 
-    # Dispatch to background thread
     threading.Thread(
-        target=_send_event,
-        args=(event_name, properties),
-        daemon=True
+        target=_send_event, args=(event_name, properties), daemon=True
     ).start()

@@ -5,25 +5,25 @@ This module provides the primary command-line interface for GitSage,
 handling UI rendering, AI provider initialization, and user interactions.
 """
 
+import asyncio
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt
 from dotenv import load_dotenv
-
-# Load environment variables from .env file if present
-load_dotenv()
+from typing import Optional
 
 from utils.telemetry import track_event
-
 from config.loader import load_config
 from engine.core import GitAIEngine
 from providers.gemini import GeminiProvider
 from providers.local import LocalProvider
 from providers.base import AIProvider
-
 from utils import __version__
+
+# Load environment variables from .env file if present
+load_dotenv()
 
 
 def version_callback(value: bool):
@@ -209,7 +209,6 @@ def display_result(result):
 )
 def commit_sync():
     """Execute the commit analysis in a synchronous context."""
-    import asyncio
 
     asyncio.run(commit())
 
@@ -276,7 +275,9 @@ async def commit():
                 "\n[bold green]✔ Commit created successfully![/bold green] 🚀"
             )
             console.print("[dim]Use 'git push' to share your changes.[/dim]\n")
-            track_event("commit_success", config, {"provider": config.get("ai_provider")})
+            track_event(
+                "commit_success", config, {"provider": config.get("ai_provider")}
+            )
         else:
             show_error("Git failed to execute the commit command.", title="Git Error")
 
@@ -301,20 +302,32 @@ async def commit():
         console.print("\n[dim]✖ Commit aborted by user.[/dim]\n")
 
 
-@app.command(name="config", help="Manage GitSage configuration (API keys, providers, etc.)")
+@app.command(
+    name="config", help="Manage GitSage configuration (API keys, providers, etc.)"
+)
 def config_cmd(
-    provider: str = typer.Option(None, "--provider", "-p", help="Set the AI provider (gemini, local)"),
-    api_key: str = typer.Option(None, "--key", "-k", help="Set the Intelligence Engine API Key"),
-    telemetry: Optional[bool] = typer.Option(None, "--telemetry/--no-telemetry", help="Enable or disable anonymous usage tracking"),
-    reset: bool = typer.Option(False, "--reset", help="Reset configuration to defaults")
+    provider: str = typer.Option(
+        None, "--provider", "-p", help="Set the AI provider (gemini, local)"
+    ),
+    api_key: str = typer.Option(
+        None, "--key", "-k", help="Set the Intelligence Engine API Key"
+    ),
+    telemetry: Optional[bool] = typer.Option(
+        None,
+        "--telemetry/--no-telemetry",
+        help="Enable or disable anonymous usage tracking",
+    ),
+    reset: bool = typer.Option(
+        False, "--reset", help="Reset configuration to defaults"
+    ),
 ):
     """
     Manage the local GitSage configuration file.
     """
     from config.loader import load_config, save_config, DEFAULT_CONFIG
-    
+
     config = load_config()
-    
+
     if reset:
         save_config(DEFAULT_CONFIG)
         console.print("[bold green]✔ Configuration reset to defaults.[/bold green]")
@@ -325,7 +338,7 @@ def config_cmd(
         config["ai_provider"] = provider.lower()
         updated = True
         console.print(f"[bold green]✔ AI Provider set to:[/bold green] {provider}")
-    
+
     if api_key:
         config["api_key"] = api_key
         updated = True
@@ -345,7 +358,9 @@ def config_cmd(
             val = "********" if k == "api_key" and v else v
             console.print(f"[bold white]{k:15}:[/bold white] {val}")
         console.print(f"[dim]{'━' * 30}[/dim]\n")
-        console.print("[dim]Use 'gitsage config --help' to see how to change these values.[/dim]")
+        console.print(
+            "[dim]Use 'gitsage config --help' to see how to change these values.[/dim]"
+        )
     else:
         save_config(config)
 
@@ -374,12 +389,13 @@ def main(
     if ctx.invoked_subcommand is None:
         if c:
             import asyncio
+
             asyncio.run(commit())
         else:
             # Silent app start telemetry
             config = load_config()
             track_event("app_start", config)
-            
+
             console.print(LOGO)  # Print logo on root or help
             console.print(ctx.get_help())
 
