@@ -9,6 +9,8 @@ DEFAULT_CONFIG = {
     "auto_commit": False,
     "max_length": 72,
     "style": "conventional",
+    "telemetry": True,
+    "anonymous_id": None,
 }
 
 
@@ -22,7 +24,15 @@ def load_config() -> Dict[str, Any]:
             config.update(user_config)
             return config
     except Exception:
-        return DEFAULT_CONFIG.copy()
+        config = DEFAULT_CONFIG.copy()
+    
+    # Ensure anonymous_id is generated once
+    if not config.get("anonymous_id"):
+        import uuid
+        config["anonymous_id"] = str(uuid.uuid4())
+        save_config(config)
+        
+    return config
 
 
 def save_config(config: Dict[str, Any]):
