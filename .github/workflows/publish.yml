@@ -13,24 +13,8 @@ permissions:
   id-token: write # Required for OIDC / Trusted Publishing
 
 jobs:
-  lint:
-    name: Lint and Format Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install Linting dependencies
-        run: pip install black ruff
-      - name: Black Format Check
-        run: black --check .
-      - name: Ruff Lint Check
-        run: ruff check .
-
   test:
     name: Test (Python ${{ matrix.python-version }}) on ${{ matrix.os }}
-    needs: lint
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -51,9 +35,20 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
 
+      - name: Lint and Format Check
+        run: |
+          ruff check .
+          black .
+      - name: Type Check (Mypy)
+        run: mypy .
+
       - name: Run Tests (Pytest)
         run: |
           pytest --cov=./ --cov-report=xml tests/
+
+      # - name: PyDoctor Self-Diagnosis
+      #   # We run pydoctor on itself to ensure it's healthy
+      #   run: python -m pydoctor.cli.main diagnose
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
