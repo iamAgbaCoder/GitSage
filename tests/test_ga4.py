@@ -1,65 +1,63 @@
-import locale
-import os
-import platform
-import sys
-import uuid
+"""Tests for utils.telemetry — fires events on a daemon thread, never blocks."""
 
-import requests
+from __future__ import annotations
 
-# Add root to sys.path to import from utils
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import time
+from unittest.mock import patch
 
-from utils import __version__
-from utils.telemetry import GA4_API_SECRET, GA4_MEASUREMENT_ID
+from utils.telemetry import track_event
 
 
-def test_ga4_validation():
-    """Validates the GA4 credentials and the new metadata fields."""
-    url = f"https://www.google-analytics.com/debug/mp/collect?measurement_id={GA4_MEASUREMENT_ID}&api_secret={GA4_API_SECRET}"
+def test_track_event_skipped_when_telemetry_disabled():
+    config = {"telemetry": False, "anonymous_id": "test-id"}
 
-    # We replicate the new payload structure from telemetry.py
-    payload = {
-        "client_id": str(uuid.uuid4()),
-        "events": [
-            {
-                "name": "metadata_test_event",
-                "params": {
-                    "os": platform.system(),
-                    "os_version": platform.version(),
-                    "architecture": platform.machine(),
-                    "python_version": platform.python_version(),
-                    "app_version": __version__,
-                    "language": locale.getlocale()[0] or "unknown",
-                    "engagement_time_msec": "1",
-                    "test_mode": "true",
-                    "custom_data_field": "test_value",
-                },
-            }
-        ],
-    }
-
-    print("--- [TEST] GA4 Metadata Validation ---")
-    print(f"Targeting: {GA4_MEASUREMENT_ID}")
-    print(f"Metadata to send: Version {__version__}, Arch {platform.machine()}")
-
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        result = response.json()
-
-        print(f"Status: {response.status_code}")
-
-        if not result.get("validationMessages"):
-            print("\n[SUCCESS] New enriched metadata payload is VALID!")
-            print(f"Snapshot: Sent {len(payload['events'][0]['params'])} parameters.")
-        else:
-            print("\n[ERROR] Payload Validation Failed:")
-            for msg in result["validationMessages"]:
-                print(f"  - {msg.get('description')} (Field: {msg.get('fieldPath')})")
-
-    except Exception as e:
-        print(f"\n[CRITICAL] Request failed: {str(e)}")
+    with patch("utils.telemetry._send_event") as mock_send:
+        track_event("test_event", config)
+        # Give any accidental thread a moment to fire
+        time.sleep(0.05)
+        mock_send.assert_not_called()
 
 
-if __name__ == "__main__":
-    test_ga4_validation()
+def test_track_event_fires_daemon_thread_when_enabled():
+    config = {"telemetry": True, "anonymous_id": "test-id"}
+    fired: list[str] = []
+
+    def fake_send(event_name: str, _props: dict):
+        fired.append(event_name)
+
+    with patch("utils.telemetry._send_event", side_effect=fake_send):
+        track_event("app_start", config)
+        # Wait for the daemon thread to complete
+        for _ in range(20):
+            if fired:
+                break
+            time.sleep(0.05)
+
+    assert fired == ["app_start"]
+
+
+def test_track_event_passes_anonymous_id():
+    config = {"telemetry": True, "anonymous_id": "abc-123"}
+    received: list[dict] = []
+
+    def capture(_event_name: str, props: dict):
+        received.append(props)
+
+    with patch("utils.telemetry._send_event", side_effect=capture):
+        track_event("commit_success", config, {"provider": "gitsage"})
+        for _ in range(20):
+            if received:
+                break
+            time.sleep(0.05)
+
+    assert received[0]["anonymous_id"] == "abc-123"
+    assert received[0]["provider"] == "gitsage"
+
+
+def test_send_event_silently_swallows_network_errors():
+    """_send_event must never raise even if the HTTP call fails."""
+    from utils.telemetry import _send_event
+
+    with patch("utils.telemetry.requests.post", side_effect=Exception("network down")):
+        # Should not raise
+        _send_event("test", {"anonymous_id": "x"})

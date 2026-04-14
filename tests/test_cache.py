@@ -1,55 +1,86 @@
+"""Tests for engine.cache.GitSageCache."""
+
+from pathlib import Path
+
 from engine.cache import GitSageCache
 from engine.models import CommitResult
 
 
-def test_cache_save_and_get(tmp_path):
-    cache_file = tmp_path / ".test_cache"
-    cache = GitSageCache(cache_file=str(cache_file))
-
-    diff = "test diff content"
-    result = CommitResult(
-        message="feat: Add new feature",
-        explanation="Added a new feature for testing.",
-        confidence_score=0.95,
-        files_changed=["main.py"],
+def _result(msg: str = "feat: test", files: list | None = None) -> CommitResult:
+    return CommitResult(
+        message=msg,
+        explanation="🧠 What changed:\n- something\n💡 Why it matters:\ntest\n🎯 Scope:\ntest.py",
+        confidence_score=0.9,
+        files_changed=files or ["test.py"],
     )
 
-    # Save to cache
+
+def test_cache_save_and_get(tmp_path: Path):
+    cache = GitSageCache(cache_path=tmp_path / ".test_cache")
+    diff = "test diff content"
+    result = _result("feat: Add new feature", ["main.py"])
+
     cache.save(diff, result)
+    cached = cache.get(diff)
 
-    # Retrieve from cache
-    cached_result = cache.get(diff)
-
-    assert cached_result is not None
-    assert cached_result.message == result.message
-    assert cached_result.confidence_score == result.confidence_score
-    assert cached_result.files_changed == result.files_changed
+    assert cached is not None
+    assert cached.message == result.message
+    assert cached.confidence_score == result.confidence_score
+    assert cached.files_changed == result.files_changed
 
 
-def test_cache_miss(tmp_path):
-    cache_file = tmp_path / ".test_cache_miss"
-    cache = GitSageCache(cache_file=str(cache_file))
-
+def test_cache_miss(tmp_path: Path):
+    cache = GitSageCache(cache_path=tmp_path / ".test_cache_miss")
     assert cache.get("non-existent diff") is None
 
 
-def test_cache_fifo_limit(tmp_path):
-    cache_file = tmp_path / ".test_cache_fifo"
-    cache = GitSageCache(cache_file=str(cache_file))
+def test_cache_miss_before_file_created(tmp_path: Path):
+    cache = GitSageCache(cache_path=tmp_path / "does_not_exist")
+    assert cache.get("anything") is None
 
-    # Fill cache beyond limit (50)
-    for i in range(55):
-        diff = f"diff {i}"
-        result = CommitResult(
-            message=f"msg {i}",
-            explanation="exp",
-            confidence_score=0.9,
-            files_changed=[],
-        )
-        cache.save(diff, result)
 
-    # Check that the first entries are gone
+def test_cache_fifo_limit(tmp_path: Path):
+    cache = GitSageCache(cache_path=tmp_path / ".test_fifo")
+
+    # Fill beyond the 100-entry cap
+    for i in range(105):
+        cache.save(f"diff {i}", _result(f"msg {i}"))
+
+    # Earliest entries should have been evicted
     assert cache.get("diff 0") is None
     assert cache.get("diff 4") is None
-    # Latest entries should still be there
-    assert cache.get("diff 54") is not None
+
+    # Most recent entries survive
+    assert cache.get("diff 104") is not None
+    assert cache.get("diff 100") is not None
+
+
+def test_cache_overwrite_same_diff(tmp_path: Path):
+    cache = GitSageCache(cache_path=tmp_path / ".test_overwrite")
+    diff = "same diff"
+
+    cache.save(diff, _result("feat: first"))
+    cache.save(diff, _result("feat: second"))
+
+    cached = cache.get(diff)
+    assert cached is not None
+    assert cached.message == "feat: second"
+
+
+def test_cache_clear(tmp_path: Path):
+    path = tmp_path / ".test_clear"
+    cache = GitSageCache(cache_path=path)
+    cache.save("some diff", _result())
+
+    assert path.exists()
+    cache.clear()
+    assert not path.exists()
+    assert cache.get("some diff") is None
+
+
+def test_cache_corrupt_file_returns_none(tmp_path: Path):
+    path = tmp_path / ".corrupt_cache"
+    path.write_text("NOT VALID JSON")
+
+    cache = GitSageCache(cache_path=path)
+    assert cache.get("any diff") is None
