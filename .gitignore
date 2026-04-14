@@ -205,5 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-
+.claude/
 .gitsage_cache
+.gitsage_auth
+.gitsage_config
