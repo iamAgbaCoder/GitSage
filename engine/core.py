@@ -1,6 +1,15 @@
-from .models import CommitResult
+"""
+GitSage AI Engine — orchestrates diff parsing, provider dispatch, and caching.
+
+When the provider is a GitSageAPIProvider the backend handles generation in a
+single round-trip (diff → commit_message + explanation + confidence).  For
+legacy local providers (Gemini, Ollama) the existing orchestrator path is kept.
+"""
+
+from __future__ import annotations
+
 from .analyzer import parse_diff
-from .explainer import calculate_confidence
+from .models import CommitResult
 from providers.base import AIProvider
 from utils.helpers import truncate_diff
 
@@ -9,87 +18,81 @@ class GitAIEngine:
     """
     Main orchestration engine for AI-powered git commit intelligence.
 
-    Coordinates the parse, analyze, generate, and calculate phases of the intelligence pipeline.
+    Coordinates parsing, provider dispatch, caching, and result assembly.
     """
 
     def __init__(self, provider: AIProvider, config: dict):
-        """
-        Initialize the Git Sage AI engine.
-
-        Args:
-            provider (AIProvider): The intelligence provider (e.g. Gemini, Local/Ollama).
-            config (dict): The configuration settings (e.g. style, filters).
-        """
         self.provider = provider
         self.config = config
 
     async def generate_commit_async(self, raw_diff: str) -> CommitResult:
         """
-        Analyze the staged changes asynchronously and generate a full intelligence report.
+        Analyse staged changes and return a full intelligence result.
 
-        This method checks the local cache first before performing any AI operations.
-        It uses the single-step orchestrator for optimized performance.
+        Fast path: if the provider exposes `analyze_diff_async` (GitSageAPIProvider)
+        the backend returns everything in one call.  Otherwise fall back to the
+        local orchestrator (Gemini / Ollama).
 
         Args:
-            raw_diff (str): The raw text of the git diff to analyze.
+            raw_diff: Raw text from `git diff --cached`.
 
         Returns:
-            CommitResult: A structured data object containing the commit message,
-                        the explanation report, confidence score, and meta info.
-
-        Raises:
-            ValueError: If no staged changes are provided.
+            CommitResult with message, explanation, confidence, and files list.
         """
         if not raw_diff:
             raise ValueError("No staged changes provided.")
 
-        truncated_diff = truncate_diff(raw_diff)
+        truncated = truncate_diff(raw_diff)
+        summary = parse_diff(truncated)
+        style = self.config.get("style", "conventional")
 
         from .cache import GitSageCache
 
         cache = GitSageCache()
+        cached = cache.get(truncated)
+        if cached:
+            return cached
 
-        # Check cache first
-        cached_result = cache.get(truncated_diff)
-        if cached_result:
-            return cached_result
+        # ── Fast path: hosted GitSage backend ──────────────────────────────
+        if hasattr(self.provider, "analyze_diff_async"):
+            api_result = await self.provider.analyze_diff_async(
+                diff=truncated,
+                context=summary.intent_summary,
+                style=style,
+            )
+            result = CommitResult(
+                message=api_result.commit_message,
+                explanation=api_result.explanation,
+                confidence_score=api_result.confidence,
+                files_changed=summary.files_changed,
+            )
+        else:
+            # ── Legacy path: local provider via orchestrator ────────────────
+            from .orchestrator import generate_full_result_async
+            from .explainer import calculate_confidence
 
-        summary = parse_diff(truncated_diff)
-        style = self.config.get("style", "conventional")
+            message, explanation = await generate_full_result_async(
+                summary.raw_content, self.provider, style=style
+            )
+            confidence = calculate_confidence(message, truncated)
+            result = CommitResult(
+                message=message,
+                explanation=explanation,
+                confidence_score=confidence,
+                files_changed=summary.files_changed,
+            )
 
-        from .orchestrator import generate_full_result_async
-
-        # Step 1: Single-Round AI Generation (Optimized)
-        message, explanation = await generate_full_result_async(
-            summary.raw_content, self.provider, style=style
-        )
-
-        # Step 2: Parallelize confidence calculation
-        confidence = calculate_confidence(message, truncated_diff)
-
-        result = CommitResult(
-            message=message,
-            explanation=explanation,
-            confidence_score=confidence,
-            files_changed=summary.files_changed,
-        )
-
-        # Save to cache
-        cache.save(truncated_diff, result)
-
+        cache.save(truncated, result)
         return result
 
     def generate_commit(self, raw_diff: str) -> CommitResult:
-        """
-        Synchronous wrapper for commit generation (Legacy).
-
-        Note: Use generate_commit_async instead for better performance and non-blocking I/O.
-        """
+        """Synchronous wrapper (legacy). Prefer generate_commit_async."""
         import asyncio
         import warnings
 
         warnings.warn(
-            "Use generate_commit_async instead for better performance.",
+            "Use generate_commit_async for better performance.",
             DeprecationWarning,
+            stacklevel=2,
         )
         return asyncio.run(self.generate_commit_async(raw_diff))

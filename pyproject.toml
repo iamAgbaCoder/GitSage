@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gitsage"
-version = "1.0.0"
+version = "1.1.0"
 description = "GitSage AI: Premium AI-powered Git commit assistant with deep intelligence."
 readme      = "README.md"
 license     = { file = "LICENSE" }
@@ -15,19 +15,20 @@ maintainers = [
     { name = "Favour Bamgboye", email = "demiladebamgboye@gmail.com" }
 ]
 
+# Core runtime dependencies — kept minimal so install is fast for end-users.
+# google-generativeai is optional (legacy local provider) — see [project.optional-dependencies].
 dependencies = [
     "typer[all]>=0.12.0",
     "rich>=13.7.0",
-    "requests>=2.31.0",
-    "google-generativeai>=0.8.0",
-    "python-dotenv>=1.0.1"
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.1",
 ]
 requires-python = ">=3.10"
 
 keywords = [
     "git", "ai", "devtools", "developer-tools", "git-tools",
-    "open-source", "cli-tool", "automation", "productivity", 
-    "commit-messages", "python", "generative-ai", "conventional-commits"
+    "open-source", "cli-tool", "automation", "productivity",
+    "commit-messages", "python", "generative-ai", "conventional-commits",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -48,10 +49,21 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# Legacy local provider (Gemini / Google Generative AI)
+gemini = [
+    "google-generativeai>=0.8.0",
+    "requests>=2.31.0",
+]
+# Local Ollama provider
+local = [
+    "requests>=2.31.0",
+]
+# Development tooling
 dev = [
     "pytest>=8",
     "pytest-asyncio",
     "pytest-cov",
+    "respx",           # httpx mock/intercept for tests
     "ruff",
     "black",
     "mypy",
@@ -64,9 +76,9 @@ dev = [
 gitsage = "cli.main:app"
 
 [project.urls]
-"Homepage"      = "https://gitsage.vercel.app"
+"Homepage"      = "https://gitsage-ai.vercel.app"
 "Repository"    = "https://github.com/iamAgbaCoder/gitsage"
-"Documentation" = "https://gitsage.vercel.app/docs"
+"Documentation" = "https://gitsage-ai.vercel.app/docs"
 "Bug Tracker"   = "https://github.com/iamAgbaCoder/gitsage/issues"
 "Changelog"     = "https://github.com/iamAgbaCoder/gitsage/releases"
 
@@ -74,25 +86,26 @@ gitsage = "cli.main:app"
 # Tool configs
 # ──────────────────────────────────────────────────────────────
 
-[tool.pydoctor]
-# Packages to ignore during unused dependency scanning
-ignored_packages = [
-    "gitsage",
-    "setuptools",
-    "wheel",
-    "twine",
-    "build",
-    "ruff",
-    "mypy",
-    "black",
-    "pytest",
-    "pytest-cov",
-    "colorama",
-    "docutils",
-    "types-requests",
-    "pipdeptree",
-]
-
-
 [tool.setuptools]
 packages = ["cli", "engine", "providers", "git", "config", "utils"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.mypy]
+exclude = ["build/", ".dev/"]
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

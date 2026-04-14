@@ -1,94 +1,89 @@
+"""
+GitSage local result cache.
+
+Stores AI intelligence results keyed by SHA-256(diff) so identical diffs
+never trigger a redundant API round-trip.
+
+Cache file location: ~/.gitsage_cache  (user home directory, not project dir)
+This keeps the file out of version-controlled repos and makes it available
+across all projects on the machine.
+"""
+
+from __future__ import annotations
+
 import hashlib
 import json
-import os
 from dataclasses import asdict
+from pathlib import Path
 from typing import Optional
+
 from .models import CommitResult
+
+_DEFAULT_CACHE_PATH = Path.home() / ".gitsage_cache"
+_MAX_ENTRIES = 100
 
 
 class GitSageCache:
     """
-    High-performance local caching system for AI commit intelligence.
+    High-performance local cache for GitSage intelligence results.
 
-    Uses SHA-256 hashes of git diffs to avoid redundant API calls.
-    Maintains a FIFO limit of 50 entries to keep the cache file small.
+    Uses SHA-256 hashes of (truncated) git diffs as keys.
+    Maintains a FIFO cap of 100 entries so the file stays small.
+    All I/O errors are silently swallowed — a cache miss is always safe.
     """
 
-    def __init__(self, cache_file: str = ".gitsage_cache"):
-        """
-        Initialize the cache.
+    def __init__(self, cache_path: Optional[Path] = None):
+        self._path = cache_path or _DEFAULT_CACHE_PATH
 
-        Args:
-            cache_file (str): The path to the local cache storage file.
-        """
-        self.cache_file = cache_file
+    # ── Internal helpers ───────────────────────────────────────────────────
 
-    def _get_hash(self, content: str) -> str:
-        """
-        Compute a unique SHA-256 hash for the given content.
-
-        Args:
-            content (str): The text content (usually a git diff).
-
-        Returns:
-            str: The hexadecimal hash string.
-        """
+    def _hash(self, content: str) -> str:
         return hashlib.sha256(content.encode()).hexdigest()
 
+    def _load(self) -> dict:
+        if not self._path.exists():
+            return {}
+        try:
+            with open(self._path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _dump(self, data: dict):
+        try:
+            with open(self._path, "w", encoding="utf-8") as f:
+                json.dump(data, f, separators=(",", ":"))
+        except Exception:
+            pass
+
+    # ── Public API ─────────────────────────────────────────────────────────
+
     def get(self, diff_content: str) -> Optional[CommitResult]:
-        """
-        Attempt to retrieve a previous result from the cache.
-
-        Args:
-            diff_content (str): The git diff to check.
-
-        Returns:
-            Optional[CommitResult]: The cached result if found, otherwise None.
-        """
-        if not os.path.exists(self.cache_file):
+        """Return the cached CommitResult for this diff, or None on miss."""
+        data = self._load()
+        entry = data.get(self._hash(diff_content))
+        if not entry:
+            return None
+        try:
+            entry.setdefault("files_changed", [])
+            return CommitResult(**entry)
+        except Exception:
             return None
 
-        diff_hash = self._get_hash(diff_content)
-        try:
-            with open(self.cache_file, "r") as f:
-                data = json.load(f)
-                cached = data.get(diff_hash)
-                if cached:
-                    # Provide default for fields that may be missing from older cache entries
-                    if "files_changed" not in cached:
-                        cached["files_changed"] = []
-                    return CommitResult(**cached)
-        except (json.JSONDecodeError, Exception):
-            pass
-        return None
-
     def save(self, diff_content: str, result: CommitResult):
-        """
-        Store a new intelligence result in the local cache.
+        """Persist an intelligence result; evict oldest entry if over cap."""
+        data = self._load()
+        data[self._hash(diff_content)] = asdict(result)
 
-        Args:
-            diff_content (str): The git diff that generated the result.
-            result (CommitResult): The intelligence result to store.
-        """
-        diff_hash = self._get_hash(diff_content)
-        data = {}
-        if os.path.exists(self.cache_file):
-            try:
-                with open(self.cache_file, "r") as f:
-                    data = json.load(f)
-            except (json.JSONDecodeError, Exception):
-                pass
+        # FIFO eviction (Python 3.7+ dicts are insertion-ordered)
+        while len(data) > _MAX_ENTRIES:
+            data.pop(next(iter(data)))
 
-        data[diff_hash] = asdict(result)
+        self._dump(data)
 
-        # Limit cache size to 50 entries to avoid bloating
-        if len(data) > 50:
-            # Simple FIFO removal (Python 3.7+ dicts maintain order)
-            first_key = next(iter(data))
-            del data[first_key]
-
+    def clear(self):
+        """Wipe the entire cache file."""
         try:
-            with open(self.cache_file, "w") as f:
-                json.dump(data, f, indent=2)
+            self._path.unlink(missing_ok=True)
         except Exception:
             pass
