@@ -15,13 +15,12 @@ def generate_commit_message(
     Returns:
         str: The generated commit message string.
     """
-    prompt = f"""You are an expert software engineer generating a perfectly structured git commit message.
-    
-The commit must follow the "{style}" style.
-Only output the commit message string. Do not include quotes, explanations, backticks or any other text.
-Max 72 characters if possible.
+    prompt = f"""You are an expert software engineer generating a perfectly structured git commit message.   
+    The commit must follow the "{style}" style.
+    Only output the commit message string. Do not include quotes, explanations, backticks or any other text.
+    Max 72 characters if possible.
 
-Diff Summary:
-{diff_summary_content}
-"""
+    Diff Summary:
+    {diff_summary_content}
+    """
     return provider.generate(prompt)

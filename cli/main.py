@@ -239,9 +239,9 @@ def commit_sync():
 
 async def _commit():
     """Core async commit workflow."""
-    from providers.gitsage import AuthenticationError, RateLimitError
-    from git.diff import execute_commit_async, get_staged_diff_async
     from engine.core import GitAIEngine
+    from git.diff import execute_commit_async, get_staged_diff_async
+    from providers.gitsage import AuthenticationError, RateLimitError
 
     config = load_config()
     provider = _build_provider()
@@ -385,9 +385,7 @@ def config_cmd(
                 continue
             console.print(f"[bold white]{k:15}:[/bold white] {v}")
         console.print(f"[dim]{'━' * 30}[/dim]")
-        console.print(
-            "[dim]Use 'gitsage config --help' to see available options.[/dim]\n"
-        )
+        console.print("[dim]Use 'gitsage config --help' to see available options.[/dim]\n")
 
 
 @app.callback(invoke_without_command=True)

@@ -1,15 +1,16 @@
-import requests
-import uuid
-import platform
 import locale
-import sys
 import os
+import platform
+import sys
+import uuid
+
+import requests
 
 # Add root to sys.path to import from utils
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from utils.telemetry import GA4_MEASUREMENT_ID, GA4_API_SECRET
 from utils import __version__
+from utils.telemetry import GA4_API_SECRET, GA4_MEASUREMENT_ID
 
 
 def test_ga4_validation():

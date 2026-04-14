@@ -1,20 +1,15 @@
 import os
 from typing import Optional
+
 from .base import AIProvider
 
 
 class GeminiProvider(AIProvider):
-    def __init__(
-        self, api_key: Optional[str] = None, model_name: str = "gemini-2.0-flash"
-    ):
+    def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-2.0-flash"):
         self.model_name = model_name
-        self.api_key = (
-            api_key or os.getenv("GITSAGE_API_KEY") or os.getenv("GEMINI_API_KEY")
-        )
+        self.api_key = api_key or os.getenv("GITSAGE_API_KEY") or os.getenv("GEMINI_API_KEY")
         if not self.api_key:
-            raise ValueError(
-                "GitSage API_KEY is missing. Please set it or add it to config."
-            )
+            raise ValueError("GitSage API_KEY is missing. Please set it or add it to config.")
 
         try:
             import warnings
@@ -25,9 +20,7 @@ class GeminiProvider(AIProvider):
             genai.configure(api_key=self.api_key)
             self.model = genai.GenerativeModel(self.model_name)
         except ImportError:
-            raise ImportError(
-                "google-generativeai package is not installed. Please install it."
-            )
+            raise ImportError("google-generativeai package is not installed. Please install it.")
 
     def generate(self, prompt: str) -> str:
         try:

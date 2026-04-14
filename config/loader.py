@@ -31,6 +31,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 
 # ── Config helpers ─────────────────────────────────────────────────────────
 
+
 def load_config() -> Dict[str, Any]:
     """Load user preferences from ~/.git-sage.json, merging with defaults."""
     config = DEFAULT_CONFIG.copy()
@@ -63,6 +64,7 @@ def save_config(config: Dict[str, Any]):
 
 
 # ── Secure API key helpers ─────────────────────────────────────────────────
+
 
 def load_api_key() -> Optional[str]:
     """

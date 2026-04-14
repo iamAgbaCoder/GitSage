@@ -8,10 +8,11 @@ legacy local providers (Gemini, Ollama) the existing orchestrator path is kept.
 
 from __future__ import annotations
 
-from .analyzer import parse_diff
-from .models import CommitResult
 from providers.base import AIProvider
 from utils.helpers import truncate_diff
+
+from .analyzer import parse_diff
+from .models import CommitResult
 
 
 class GitAIEngine:
@@ -68,8 +69,8 @@ class GitAIEngine:
             )
         else:
             # ── Legacy path: local provider via orchestrator ────────────────
-            from .orchestrator import generate_full_result_async
             from .explainer import calculate_confidence
+            from .orchestrator import generate_full_result_async
 
             message, explanation = await generate_full_result_async(
                 summary.raw_content, self.provider, style=style

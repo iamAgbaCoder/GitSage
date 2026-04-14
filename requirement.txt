@@ -1,5 +1,6 @@
 annotated-doc==0.0.4
 annotated-types==0.7.0
+anyio==4.13.0
 asyncio==4.0.0
 black==26.3.1
 build==1.4.2
@@ -10,6 +11,8 @@ click==8.3.1
 colorama==0.4.6
 cryptography==46.0.6
 docutils==0.22.4
+e==1.4.5
+-e git+https://github.com/iamAgbaCoder/GitSage.git@76cbbf475eab9e4bd24e9a6555d843991217fb51#egg=gitsage
 google-ai-generativelanguage==0.6.15
 google-api-core==2.30.0
 google-api-python-client==2.193.0
@@ -19,7 +22,10 @@ google-generativeai==0.8.6
 googleapis-common-protos==1.73.0
 grpcio==1.78.0
 grpcio-status==1.71.2
+h11==0.16.0
+httpcore==1.0.9
 httplib2==0.31.2
+httpx==0.28.1
 id==1.6.1
 idna==3.11
 iniconfig==2.3.0
@@ -45,7 +51,7 @@ pycparser==3.0
 pydantic==2.12.5
 pydantic_core==2.41.5
 pydoctor-cli==2.0.0
-Pygments==2.19.2
+Pygments==2.20.0
 pyparsing==3.3.2
 pyproject_hooks==1.2.0
 pytest==9.0.2

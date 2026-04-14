@@ -1,8 +1,10 @@
-import threading
-import requests
-import platform
 import locale
+import platform
+import threading
 from typing import Optional
+
+import requests
+
 from utils import __version__
 
 # Google Analytics 4 Configuration
@@ -46,6 +48,4 @@ def track_event(event_name: str, config: dict, properties: Optional[dict] = None
     properties = properties or {}
     properties["anonymous_id"] = config.get("anonymous_id", "unknown")
 
-    threading.Thread(
-        target=_send_event, args=(event_name, properties), daemon=True
-    ).start()
+    threading.Thread(target=_send_event, args=(event_name, properties), daemon=True).start()

@@ -1,5 +1,6 @@
-from providers.base import AIProvider
 import re
+
+from providers.base import AIProvider
 
 
 async def generate_full_result_async(

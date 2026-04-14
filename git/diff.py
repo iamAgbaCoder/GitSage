@@ -24,9 +24,7 @@ def get_staged_diff() -> Optional[str]:
     try:
         subprocess.run(["git", "--version"], capture_output=True, check=True)
         # Get staged diff, ignoring whitespace
-        result = subprocess.run(
-            ["git", "diff", "--cached", "-w"], capture_output=True, check=False
-        )
+        result = subprocess.run(["git", "diff", "--cached", "-w"], capture_output=True, check=False)
 
         if result.returncode != 0 or not result.stdout:
             return None
