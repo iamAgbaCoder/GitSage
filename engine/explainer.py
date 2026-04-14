@@ -16,7 +16,7 @@ def generate_explanation(
         str: A multi-line string containing 'What changed', 'Why it matters', and 'Scope'.
     """
     prompt = f"""You are an expert tech lead reviewing a git commit.
-    
+
 Commit Message: {commit_message}
 
 Provide a concise, insightful explanation of this commit. Must include EXACTLY these headers:

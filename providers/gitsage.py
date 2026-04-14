@@ -7,6 +7,7 @@ and explanation in a single round-trip, eliminating local LLM dependency.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -131,7 +132,7 @@ class GitSageAPIProvider:
         confidence = raw_confidence / 100.0 if raw_confidence > 1 else float(raw_confidence)
 
         return AnalysisResult(
-            commit_message=result_data["commit_message"],
+            commit_message=_clean_commit_message(result_data["commit_message"]),
             explanation=result_data["explanation"],
             confidence=round(min(max(confidence, 0.0), 1.0), 2),
             provider=result_data.get("provider", "gitsage"),
@@ -143,6 +144,37 @@ class GitSageAPIProvider:
         """Gracefully close the underlying HTTP connection pool."""
         if self._client and not self._client.is_closed:
             await self._client.aclose()
+
+
+def _clean_commit_message(raw: str) -> str:
+    """
+    Strip markdown formatting from a commit message returned by the backend.
+
+    The backend occasionally returns messages like:
+        **`feat: add thing`**
+    or includes the EXPLANATION block in the same field. This extracts
+    only the first clean conventional-commit line.
+    """
+    # Truncate at explanation markers so we never include the body
+    for marker in ("**EXPLANATION**", "EXPLANATION:", "🧠", "\n\n"):
+        if marker in raw:
+            raw = raw.split(marker)[0]
+
+    # Remove markdown bold/italic (**text**, *text*) and inline code (`text`)
+    raw = re.sub(r"\*\*(.+?)\*\*", r"\1", raw, flags=re.DOTALL)
+    raw = re.sub(r"\*(.+?)\*", r"\1", raw, flags=re.DOTALL)
+    raw = re.sub(r"`([^`]+)`", r"\1", raw)
+
+    # Strip stray *, `, and whitespace from the whole string
+    raw = raw.strip().strip("`*").strip()
+
+    # Return the first non-empty line
+    for line in raw.splitlines():
+        line = line.strip().strip("`*").strip()
+        if line:
+            return line
+
+    return raw.strip()
 
 
 def _get_version() -> str:

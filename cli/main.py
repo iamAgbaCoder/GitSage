@@ -200,7 +200,24 @@ def auth_cmd(
         return
 
     if not token:
-        # Interactive prompt if no --token flag was given
+        # No --token flag — if a key is already saved, just show its status
+        existing = load_api_key()
+        if existing:
+            masked = existing[:6] + "..." + existing[-4:]
+            console.print(
+                Panel(
+                    f"[bold green]✔ API key is active:[/bold green] [dim]{masked}[/dim]\n\n"
+                    "  • [bold cyan]gitsage auth --token <KEY>[/bold cyan]  — replace key\n"
+                    "  • [bold cyan]gitsage auth --logout[/bold cyan]         — remove key",
+                    title="[bold green]Authenticated[/bold green]",
+                    border_style="green",
+                    expand=False,
+                    padding=(1, 2),
+                )
+            )
+            return
+
+        # No key stored — walk the user through setup
         console.print(
             Panel(
                 _NO_KEY_MESSAGE,

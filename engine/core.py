@@ -25,6 +25,8 @@ class GitAIEngine:
     def __init__(self, provider: AIProvider, config: dict):
         self.provider = provider
         self.config = config
+        # Tests can inject a pre-configured GitSageCache instance here
+        self._cache_override = None
 
     async def generate_commit_async(self, raw_diff: str) -> CommitResult:
         """
@@ -49,7 +51,7 @@ class GitAIEngine:
 
         from .cache import GitSageCache
 
-        cache = GitSageCache()
+        cache = self._cache_override or GitSageCache()
         cached = cache.get(truncated)
         if cached:
             return cached
