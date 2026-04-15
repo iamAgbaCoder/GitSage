@@ -358,6 +358,96 @@ async def _commit():
     await provider.close()
 
 
+@app.command(name="explain", help="Explain the staged changes.")
+def explain_sync():
+    """Entry-point that runs the async explain workflow in a synchronous context."""
+    asyncio.run(_explain())
+
+
+async def _explain():
+    """Core async explain workflow."""
+    from git.diff import get_staged_diff_async
+    from providers.gitsage import AuthenticationError, RateLimitError
+
+    config = load_config()
+    provider = _build_provider()
+
+    with console.status(
+        "[bold cyan]🔍 Analysing staged changes...[/bold cyan]",
+        spinner="dots12",
+        spinner_style="bold cyan",
+    ):
+        diff = await get_staged_diff_async()
+
+    if not diff:
+        console.print(
+            Panel(
+                "[bold yellow]⚠️  No staged changes found.[/bold yellow]\n"
+                "[dim]Use [bold]git add <file>[/bold] to stage changes first.[/dim]",
+                border_style="yellow",
+                expand=False,
+                padding=(1, 2),
+            )
+        )
+        raise typer.Exit(0)
+
+    with console.status(
+        "[bold magenta]🧠 Generating explanation...[/bold magenta]",
+        spinner="dots12",
+        spinner_style="bold magenta",
+    ):
+        try:
+            result = await provider.explain_diff_async(diff)
+        except AuthenticationError as exc:
+            console.print(
+                Panel(
+                    str(exc),
+                    title="[bold red]Authentication Error[/bold red]",
+                    border_style="red",
+                    expand=False,
+                    padding=(1, 2),
+                )
+            )
+            raise typer.Exit(1)
+        except RateLimitError as exc:
+            console.print(
+                Panel(
+                    f"[bold yellow]{exc}[/bold yellow]\n\n"
+                    "[dim]You have hit the rate limit on your current plan.\n"
+                    "Upgrade at [bold cyan]https://gitsage-ai.vercel.app/docs[/bold cyan][/dim]",
+                    title="[bold yellow]Rate Limit Exceeded[/bold yellow]",
+                    border_style="yellow",
+                    expand=False,
+                    padding=(1, 2),
+                )
+            )
+            raise typer.Exit(1)
+        except Exception as exc:
+            show_error(str(exc), title="Engine Error")
+
+    track_event("explain_success", config)
+
+    console.print("\n[bold magenta]🧠 Intelligence Explanation[/bold magenta]")
+    console.print(f"[dim]{'━' * console.width}[/dim]")
+
+    if result.get("what_changed"):
+        console.print("\n[bold cyan]• WHAT CHANGED[/bold cyan]")
+        console.print(f"  {escape(result.get('what_changed'))}")
+
+    if result.get("why_it_matters"):
+        console.print("\n[bold yellow]• WHY IT MATTERS[/bold yellow]")
+        console.print(f"  {escape(result.get('why_it_matters'))}")
+
+    if result.get("reach_scope"):
+        console.print("\n[bold magenta]• REACH & SCOPE[/bold magenta]")
+        console.print(f"  {escape(result.get('reach_scope'))}")
+
+    if result.get("impact_level"):
+        console.print(f"\n[bold white]Impact Level:[/bold white] {escape(result.get('impact_level'))}\n")
+
+    await provider.close()
+
+
 @app.command(name="config", help="Manage GitSage preferences (style, telemetry, etc.).")
 def config_cmd(
     style: Optional[str] = typer.Option(
@@ -415,6 +505,12 @@ def main(
         "-c",
         help="Shorthand for 'gitsage commit'.",
     ),
+    e: bool = typer.Option(
+        False,
+        "--explain",
+        "-e",
+        help="Shorthand for 'gitsage explain'.",
+    ),
     _version: bool = typer.Option(
         None,
         "--version",
@@ -427,6 +523,8 @@ def main(
     if ctx.invoked_subcommand is None:
         if c:
             asyncio.run(_commit())
+        elif e:
+            asyncio.run(_explain())
         else:
             config = load_config()
             track_event("app_start", config)

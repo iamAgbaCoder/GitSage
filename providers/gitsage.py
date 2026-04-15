@@ -15,6 +15,7 @@ import httpx
 
 BASE_URL = "https://gitsage-api.up.railway.app"
 ANALYZE_ENDPOINT = "/v1/intelligence/analyze"
+EXPLAIN_ENDPOINT = "/v1/intelligence/explain"
 REQUEST_TIMEOUT = 45.0
 
 
@@ -139,6 +140,53 @@ class GitSageAPIProvider:
             model=result_data.get("model", "unknown"),
             analysis_time_ms=result_data.get("analysis_time_ms", 0),
         )
+
+    async def explain_diff_async(self, diff: str) -> dict:
+        """
+        Send the diff to the backend to get an explanation of the changes.
+
+        Args:
+            diff: Raw (already truncated) git diff text.
+
+        Returns:
+            dict: The explanation data including 'what_changed', 'why_it_matters',
+                  'reach_scope', and 'impact_level'.
+        """
+        client = self._client_instance()
+        try:
+            response = await client.post(
+                EXPLAIN_ENDPOINT,
+                json={"diff": diff},
+            )
+            data = response.json()
+        except httpx.TimeoutException:
+            raise RuntimeError(
+                "Request to GitSage API timed out. "
+                "Check your connection or try again in a moment."
+            )
+        except httpx.NetworkError:
+            raise RuntimeError(
+                "Could not reach the GitSage API. Check your internet connection and try again."
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Unexpected network error: {exc}")
+
+        success = data.get("success", False)
+        if not success:
+            status_code = data.get("statusCode", response.status_code)
+            message = data.get("message", "Unknown error from API.")
+
+            if status_code == 401:
+                raise AuthenticationError(
+                    "Invalid or expired API key.\n\n"
+                    "  • Run [bold cyan]gitsage auth --token <KEY>[/bold cyan] to update your key.\n"
+                    "  • Get a free key at [bold cyan]https://gitsage-ai.vercel.app/docs[/bold cyan]"
+                )
+            if status_code == 429:
+                raise RateLimitError(message)
+            raise RuntimeError(f"API error {status_code}: {message}")
+
+        return data.get("data", {})
 
     async def close(self):
         """Gracefully close the underlying HTTP connection pool."""
