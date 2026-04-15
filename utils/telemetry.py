@@ -7,8 +7,9 @@ import requests
 
 from utils import __version__
 
+from config.remote import get_remote_config
+
 # Analytics Configuration
-TELEMETRY_ENDPOINT = "https://gitsage-api.up.railway.app/v1/telemetry/track"
 
 
 def _send_event(event_type: str, properties: dict, user_id: str):
@@ -29,7 +30,14 @@ def _send_event(event_type: str, properties: dict, user_id: str):
                 or "unknown",
             },
         }
-        requests.post(TELEMETRY_ENDPOINT, json=payload, timeout=2)
+
+        remote_config = get_remote_config()
+        api_base_url = remote_config.get(
+            "api_base_url", "https://gitsage-api.up.railway.app"
+        ).rstrip("/")
+        endpoint = f"{api_base_url}/v1/telemetry/track"
+
+        requests.post(endpoint, json=payload, timeout=2)
     except Exception:
         pass
 

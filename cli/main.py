@@ -22,13 +22,17 @@ from rich.prompt import Prompt
 from rich.text import Text
 
 from config.loader import delete_api_key, load_api_key, load_config, save_api_key
+from config.remote import get_remote_config
 from utils import __version__
 from utils.telemetry import track_event
 
 load_dotenv()
 
+_REMOTE = get_remote_config()
+_FRONTEND = _REMOTE.get("frontend_base_url", "https://gitsage-ai.vercel.app").rstrip("/")
+
 app = typer.Typer(
-    help=f"GitSage — AI-Powered Git Commit Assistant • {__version__}",
+    help=f"GitSage — AI-Powered Git Commit Assistant • {__version__} • {_FRONTEND}",
     add_completion=False,
 )
 console = Console()
@@ -43,13 +47,15 @@ LOGO = rf"""[bold cyan]
  [dim]AI-Powered Commit Intelligence • {__version__}[/dim]
 """
 
-_NO_KEY_MESSAGE = (
-    "No GitSage API key found.\n\n"
-    "  1. Get a free key at [bold cyan]https://gitsage-ai.vercel.app/docs[/bold cyan]\n"
-    "  2. Authenticate with:  [bold white]gitsage auth --token <KEY>[/bold white]\n\n"
-    "[dim]Your key is stored in [bold]~/.gitsage_auth[/bold] with restricted "
-    "file permissions so only your user account can read it.[/dim]"
-)
+
+def _get_no_key_message() -> str:
+    return (
+        "No GitSage API key found.\n\n"
+        f"  1. Get a free key at [bold cyan]{_FRONTEND}/docs[/bold cyan]\n"
+        "  2. Authenticate with:  [bold white]gitsage auth --token <KEY>[/bold white]\n\n"
+        "[dim]Your key is stored in [bold]~/.gitsage_auth[/bold] with restricted "
+        "file permissions so only your user account can read it.[/dim]"
+    )
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -86,7 +92,7 @@ def _build_provider():
     if not api_key:
         console.print(
             Panel(
-                _NO_KEY_MESSAGE,
+                _get_no_key_message(),
                 title="[bold yellow]Authentication Required[/bold yellow]",
                 border_style="yellow",
                 expand=False,
@@ -133,14 +139,14 @@ def display_result(result):
         elif "🎯 Scope:" in line:
             console.print("\n[bold magenta]• REACH & SCOPE[/bold magenta]")
         elif line.startswith(("*", "-")):
-            console.print(f"  [dim]↳[/dim] {escape(line.lstrip('*- ').strip())}")
+            console.print(f"  [dim]↳[/dim] {line.lstrip('*- ').strip()}")
         else:
             if line.endswith(":") and any(
                 h in line.lower() for h in ["changed", "matters", "scope"]
             ):
                 console.print(f"\n[bold]{escape(line.upper())}[/bold]")
             else:
-                console.print(f"  {escape(line)}")
+                console.print(f"  {line}")
 
     console.print(f"\n[dim]{'━' * console.width}[/dim]")
 
@@ -168,7 +174,7 @@ def auth_cmd(
         None,
         "--token",
         "-t",
-        help="Your GitSage API key (get one at https://gitsage-ai.vercel.app/docs).",
+        help=f"Your GitSage API key (get one at {_FRONTEND}/docs).",
     ),
     logout: bool = typer.Option(
         False,
@@ -221,7 +227,7 @@ def auth_cmd(
         # No key stored — walk the user through setup
         console.print(
             Panel(
-                _NO_KEY_MESSAGE,
+                _get_no_key_message(),
                 title="[bold yellow]Authentication Setup[/bold yellow]",
                 border_style="yellow",
                 expand=False,
@@ -306,8 +312,8 @@ async def _commit():
             console.print(
                 Panel(
                     f"[bold yellow]{exc}[/bold yellow]\n\n"
-                    "[dim]You have hit the rate limit on your current plan.\n"
-                    "Upgrade at [bold cyan]https://gitsage-ai.vercel.app/docs[/bold cyan][/dim]",
+                    f"[dim]You have hit the rate limit on your current plan.\n"
+                    f"Upgrade at [bold cyan]{_FRONTEND}/docs[/bold cyan][/dim]",
                     title="[bold yellow]Rate Limit Exceeded[/bold yellow]",
                     border_style="yellow",
                     expand=False,
@@ -413,8 +419,8 @@ async def _explain():
             console.print(
                 Panel(
                     f"[bold yellow]{exc}[/bold yellow]\n\n"
-                    "[dim]You have hit the rate limit on your current plan.\n"
-                    "Upgrade at [bold cyan]https://gitsage-ai.vercel.app/docs[/bold cyan][/dim]",
+                    f"[dim]You have hit the rate limit on your current plan.\n"
+                    f"Upgrade at [bold cyan]{_FRONTEND}/docs[/bold cyan][/dim]",
                     title="[bold yellow]Rate Limit Exceeded[/bold yellow]",
                     border_style="yellow",
                     expand=False,
@@ -443,7 +449,9 @@ async def _explain():
         console.print(f"  {escape(result.get('reach_scope'))}")
 
     if result.get("impact_level"):
-        console.print(f"\n[bold white]Impact Level:[/bold white] {escape(result.get('impact_level'))}\n")
+        console.print(
+            f"\n[bold white]Impact Level:[/bold white] {escape(result.get('impact_level'))}\n"
+        )
 
     await provider.close()
 
@@ -520,6 +528,9 @@ def main(
         help="Show version and exit.",
     ),
 ):
+    # Fetch and handle remote configuration on CLI startup
+    get_remote_config()
+
     if ctx.invoked_subcommand is None:
         if c:
             asyncio.run(_commit())

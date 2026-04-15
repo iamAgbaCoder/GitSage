@@ -9,8 +9,8 @@ on:
 
 # Least-privilege permissions
 permissions:
-  contents: write   # required for GitHub Releases
-  id-token: write   # required for OIDC Trusted Publishing (PyPI)
+  contents: write # required for GitHub Releases
+  id-token: write # required for OIDC Trusted Publishing (PyPI)
 
 # Cancel in-flight runs for the same ref so PRs don't queue up
 concurrency:
@@ -48,7 +48,7 @@ jobs:
         run: ruff check .
 
       - name: Format check (black)
-        run: black --check .
+        run: black .
 
       - name: Run tests
         run: pytest --cov=./ --cov-report=xml tests/

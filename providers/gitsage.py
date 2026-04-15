@@ -10,10 +10,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Optional
-
 import httpx
 
-BASE_URL = "https://gitsage-api.up.railway.app"
+from config.remote import get_remote_config
+
 ANALYZE_ENDPOINT = "/v1/intelligence/analyze"
 EXPLAIN_ENDPOINT = "/v1/intelligence/explain"
 REQUEST_TIMEOUT = 45.0
@@ -59,8 +59,13 @@ class GitSageAPIProvider:
 
     def _client_instance(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
+            remote_config = get_remote_config()
+            api_base_url = remote_config.get(
+                "api_base_url", "https://gitsage-api.up.railway.app"
+            ).rstrip("/")
+
             self._client = httpx.AsyncClient(
-                base_url=BASE_URL,
+                base_url=api_base_url,
                 headers={
                     "X-API-Key": self.api_key,
                     "Content-Type": "application/json",
@@ -118,10 +123,14 @@ class GitSageAPIProvider:
             message = data.get("message", "Unknown error from API.")
 
             if status_code == 401:
+                remote_config = get_remote_config()
+                frontend_url = remote_config.get(
+                    "frontend_base_url", "https://gitsage-ai.vercel.app"
+                ).rstrip("/")
                 raise AuthenticationError(
                     "Invalid or expired API key.\n\n"
                     "  • Run [bold cyan]gitsage auth --token <KEY>[/bold cyan] to update your key.\n"
-                    "  • Get a free key at [bold cyan]https://gitsage-ai.vercel.app/docs[/bold cyan]"
+                    f"  • Get a free key at [bold cyan]{frontend_url}/docs[/bold cyan]"
                 )
             if status_code == 429:
                 raise RateLimitError(message)
@@ -177,10 +186,14 @@ class GitSageAPIProvider:
             message = data.get("message", "Unknown error from API.")
 
             if status_code == 401:
+                remote_config = get_remote_config()
+                frontend_url = remote_config.get(
+                    "frontend_base_url", "https://gitsage-ai.vercel.app"
+                ).rstrip("/")
                 raise AuthenticationError(
                     "Invalid or expired API key.\n\n"
                     "  • Run [bold cyan]gitsage auth --token <KEY>[/bold cyan] to update your key.\n"
-                    "  • Get a free key at [bold cyan]https://gitsage-ai.vercel.app/docs[/bold cyan]"
+                    f"  • Get a free key at [bold cyan]{frontend_url}/docs[/bold cyan]"
                 )
             if status_code == 429:
                 raise RateLimitError(message)

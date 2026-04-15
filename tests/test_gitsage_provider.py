@@ -8,6 +8,7 @@ import httpx
 import pytest
 import respx
 
+from config.remote import get_remote_config
 from providers.gitsage import (
     AnalysisResult,
     AuthenticationError,
@@ -16,8 +17,15 @@ from providers.gitsage import (
     _clean_commit_message,
 )
 
-BASE = "https://gitsage-api.up.railway.app"
-ENDPOINT = f"{BASE}/v1/intelligence/analyze"
+
+# Use default or dynamic base for tests
+def _get_test_endpoint():
+    config = get_remote_config()
+    base = config.get("api_base_url", "https://gitsage-api.up.railway.app").rstrip("/")
+    return f"{base}/v1/intelligence/analyze"
+
+
+ENDPOINT = _get_test_endpoint()
 
 GOOD_RESPONSE = {
     "success": True,

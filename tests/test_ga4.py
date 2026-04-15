@@ -69,4 +69,3 @@ def test_send_event_silently_swallows_network_errors():
     with patch("utils.telemetry.requests.post", side_effect=Exception("network down")):
         # Should not raise
         _send_event("test", {}, "x")
-
