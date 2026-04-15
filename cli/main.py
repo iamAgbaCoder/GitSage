@@ -16,6 +16,7 @@ from typing import Optional
 import typer
 from dotenv import load_dotenv
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
@@ -132,14 +133,14 @@ def display_result(result):
         elif "🎯 Scope:" in line:
             console.print("\n[bold magenta]• REACH & SCOPE[/bold magenta]")
         elif line.startswith(("*", "-")):
-            console.print(f"  [dim]↳[/dim] {line.lstrip('*- ').strip()}")
+            console.print(f"  [dim]↳[/dim] {escape(line.lstrip('*- ').strip())}")
         else:
             if line.endswith(":") and any(
                 h in line.lower() for h in ["changed", "matters", "scope"]
             ):
-                console.print(f"\n[bold]{line.upper()}[/bold]")
+                console.print(f"\n[bold]{escape(line.upper())}[/bold]")
             else:
-                console.print(f"  {line}")
+                console.print(f"  {escape(line)}")
 
     console.print(f"\n[dim]{'━' * console.width}[/dim]")
 
