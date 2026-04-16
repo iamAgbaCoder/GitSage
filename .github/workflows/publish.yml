@@ -232,7 +232,17 @@ jobs:
       - name: Generate Checksums
         run: |
           cd artifacts
-          cat *.sha256 > checksums.txt
+          # Safely consolidate checksums or generate from scratch if missing
+          if ls *.sha256 1> /dev/null 2>&1; then
+            cat *.sha256 > checksums.txt
+            echo "✅ Individual checksums consolidated."
+          else
+            echo "⚠️ No .sha256 files found. Generating fresh checksums..."
+            find . -type f ! -name "checksums.txt" -exec sha256sum {} + > checksums.txt || \
+            find . -type f ! -name "checksums.txt" -exec shasum -a 256 {} + > checksums.txt
+          fi
+          echo "=== Final Checksums ==="
+          cat checksums.txt
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2
