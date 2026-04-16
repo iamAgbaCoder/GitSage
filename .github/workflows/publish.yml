@@ -199,7 +199,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://pypi.org/p/gitsage
+      url: https://pypi.org/p/gitsage-cli
     steps:
       - name: Download dist
         uses: actions/download-artifact@v4
