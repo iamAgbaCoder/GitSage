@@ -12,16 +12,7 @@ authors     = [
     { name = "Favour Bamgboye", email = "demiladebamgboye@gmail.com" }
 ]
 maintainers = [
-    { 
-        name = "Favour Bamgboye", 
-        email = "[EMAIL_ADDRESS]",
-        role = "Maintainer"
-    },
-    {
-        name = "Above Bamgboye",
-        email = "abovebamgboye@gmail.com",
-        role = "Maintainer"
-    }
+    { name = "Favour Bamgboye", email = "demiladebamgboye@gmail.com" }
 ]
 
 # Core runtime dependencies — kept minimal so install is fast for end-users.
