@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gitsage"
+name = "gitsage-cli"
 version = "1.0.0"
 description = "GitSage AI: Premium AI-powered Git commit assistant with deep intelligence."
 readme      = "README.md"
@@ -16,7 +16,6 @@ maintainers = [
 ]
 
 # Core runtime dependencies — kept minimal so install is fast for end-users.
-# google-generativeai is optional (legacy local provider) — see [project.optional-dependencies].
 dependencies = [
     "typer[all]>=0.12.0",
     "rich>=13.7.0",
@@ -49,11 +48,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Legacy local provider (Gemini / Google Generative AI)
-gemini = [
-    "google-generativeai>=0.8.0",
-    "requests>=2.31.0",
-]
+
 # Local Ollama provider
 local = [
     "requests>=2.31.0",
