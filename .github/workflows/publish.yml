@@ -218,7 +218,11 @@ jobs:
   github-release:
     name: Create GitHub Release
     needs: [deploy-pypi, build-binaries]
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Handle partial success: Run if PyPI worked, even if some binaries were cancelled/failed
+    if: |
+      always() &&
+      needs.deploy-pypi.result == 'success' &&
+      startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -228,6 +232,8 @@ jobs:
         with:
           path: artifacts/
           merge-multiple: true
+          # Continue even if some build-binaries jobs didn't upload anything
+          ignore-on-no-artifacts: true
 
       - name: Generate Checksums
         run: |
