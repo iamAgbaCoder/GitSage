@@ -5,9 +5,8 @@ from typing import Optional
 
 import requests
 
-from utils import __version__
-
 from config.remote import get_remote_config
+from utils import __version__
 
 # Analytics Configuration
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Optional
+
 import httpx
 
 from config.remote import get_remote_config
