@@ -139,14 +139,14 @@ def display_result(result):
         elif "🎯 Scope:" in line:
             console.print("\n[bold magenta]• REACH & SCOPE[/bold magenta]")
         elif line.startswith(("*", "-")):
-            console.print(f"  [dim]↳[/dim] {line.lstrip('*- ').strip()}")
+            console.print(f"  [dim]↳[/dim] {escape(line.lstrip('*- ').strip())}")
         else:
             if line.endswith(":") and any(
                 h in line.lower() for h in ["changed", "matters", "scope"]
             ):
                 console.print(f"\n[bold]{escape(line.upper())}[/bold]")
             else:
-                console.print(f"  {line}")
+                console.print(f"  {escape(line)}")
 
     console.print(f"\n[dim]{'━' * console.width}[/dim]")
 
