@@ -193,4 +193,4 @@ Trusted Publishing (OIDC) is used — no `PYPI_TOKEN` secret needed. Set up the 
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 — see [LICENSE](LICENSE). Thank you!
